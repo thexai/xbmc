@@ -515,6 +515,7 @@ void DX::DeviceResources::ResizeBuffers()
 
   bool bHWStereoEnabled = RENDER_STEREO_MODE_HARDWAREBASED == CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoMode();
   bool windowed = true;
+  bool hdr_enabled = false;
   HRESULT hr = E_FAIL;
 
   DXGI_SWAP_CHAIN_DESC1 scDesc = { 0 };
@@ -537,6 +538,27 @@ void DX::DeviceResources::ResizeBuffers()
         m_swapChain->SetFullscreenState(false, nullptr); // mandatory before releasing swapchain
       }
 
+      m_swapChain = nullptr;
+      m_deferrContext->Flush();
+      m_d3dContext->Flush();
+    }
+  }
+
+  if (m_swapChain)
+  {
+    bool hdr_capable;
+    DetectDisplayHdrCapable(hdr_capable, hdr_enabled);
+
+    // check if swapchain needs to be recreated at 10 bit
+    if (Is10BitSwapchain() == false && hdr_enabled)
+    {
+      BOOL bFullcreen = 0;
+      m_swapChain->GetFullscreenState(&bFullcreen, nullptr);
+      if (!!bFullcreen)
+      {
+        windowed = false;
+        m_swapChain->SetFullscreenState(false, nullptr); // mandatory before releasing swapchain
+      }
       m_swapChain = nullptr;
       m_deferrContext->Flush();
       m_d3dContext->Flush();
@@ -589,7 +611,7 @@ void DX::DeviceResources::ResizeBuffers()
     ComPtr<IDXGISwapChain1> swapChain;
     if ( m_d3dFeatureLevel >= D3D_FEATURE_LEVEL_11_0
       && !bHWStereoEnabled
-      && CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_bTry10bitOutput)
+      && (CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_bTry10bitOutput || hdr_enabled))
     {
       swapChainDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
       hr = CreateSwapChain(swapChainDesc, scFSDesc, &swapChain);
@@ -622,6 +644,17 @@ void DX::DeviceResources::ResizeBuffers()
     {
       CLog::LogF(LOGERROR, "unable to create swapchain.");
       return;
+    }
+
+    if (swapChainDesc.Format == DXGI_FORMAT_R10G10B10A2_UNORM)
+    {
+      Set10BitSwapchain(true);
+      CLog::LogF(LOGNOTICE, "10 bit swapchain is used.");
+    }
+    else
+    {
+      Set10BitSwapchain(false);
+      CLog::LogF(LOGNOTICE, "8 bit swapchain is used.");
     }
 
     hr = swapChain.As(&m_swapChain); CHECK_ERR();
@@ -1097,3 +1130,155 @@ void DX::DeviceResources::Trim() const
 }
 
 #endif
+
+void DX::DeviceResources::DetectDisplayHdrCapable(bool& hdr_capable, bool& hdr_enabled)
+{
+  ComPtr<IDXGIOutput> pOutput;
+  ComPtr<IDXGIOutput6> pOutput6;
+  DXGI_OUTPUT_DESC1 outDesc1;
+  hdr_capable = false;
+  hdr_enabled = false;
+
+  if (m_swapChain == nullptr)
+    return;
+
+  if (SUCCEEDED(m_swapChain->GetContainingOutput(pOutput.GetAddressOf())))
+  {
+    if (SUCCEEDED(pOutput.As(&pOutput6)))
+    {
+      if (SUCCEEDED(pOutput6->GetDesc1(&outDesc1)))
+      {
+        if (outDesc1.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
+        {
+          CLog::LogF(LOGNOTICE, "Monitor HDR capable detected and HRD current state is ENABLED:");
+          hdr_enabled = true;
+          hdr_capable = true;
+          constexpr double FACTOR_1 = 50000.0;
+          constexpr double FACTOR_2 = 10000.0;
+          DXGI_HDR_METADATA_HDR10 hdr10 = {};
+          hdr10.RedPrimary[0] = (UINT16)(FACTOR_1 * outDesc1.RedPrimary[0]);
+          hdr10.RedPrimary[1] = (UINT16)(FACTOR_1 * outDesc1.RedPrimary[1]);
+          hdr10.GreenPrimary[0] = (UINT16)(FACTOR_1 * outDesc1.GreenPrimary[0]);
+          hdr10.GreenPrimary[1] = (UINT16)(FACTOR_1 * outDesc1.GreenPrimary[1]);
+          hdr10.BluePrimary[0] = (UINT16)(FACTOR_1 * outDesc1.BluePrimary[0]);
+          hdr10.BluePrimary[1] = (UINT16)(FACTOR_1 * outDesc1.BluePrimary[1]);
+          hdr10.WhitePoint[0] = (UINT16)(FACTOR_1 * outDesc1.WhitePoint[0]);
+          hdr10.WhitePoint[1] = (UINT16)(FACTOR_1 * outDesc1.WhitePoint[1]);
+          hdr10.MaxMasteringLuminance = (UINT)(FACTOR_2 * outDesc1.MaxLuminance);
+          hdr10.MinMasteringLuminance = (UINT)(FACTOR_2 * outDesc1.MinLuminance);
+          hdr10.MaxContentLightLevel = (UINT16)(outDesc1.MaxFullFrameLuminance);
+          hdr10.MaxFrameAverageLightLevel = (UINT16)(outDesc1.MaxFullFrameLuminance);
+          //Saves Monitor parameters for use later
+          SetHdr10Output(hdr10);
+        }
+        else if (outDesc1.MaxLuminance >= 400.0)
+        {
+          CLog::LogF(LOGNOTICE, "Monitor HDR capable is detected but NOT enabled:");
+          hdr_capable = true;
+        }
+        else
+        {
+          CLog::LogF(LOGNOTICE, "No monitor HDR capable detected.");
+        }
+        if (hdr_capable)
+        {
+          char cs_txt[64];
+          switch (outDesc1.ColorSpace)
+          {
+            case DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020:
+              strcpy(cs_txt, "DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020");
+              break;
+            case DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709:
+              strcpy(cs_txt, "DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709");
+              break;
+            default:
+              strcpy(cs_txt, "UNKNOWN");
+              break;
+          }
+          CLog::LogF(LOGNOTICE, "Color Space = {0:s}", cs_txt);
+          CLog::LogF(LOGNOTICE, "RedPrimary = {0:0.3f}, {1:0.3f}", outDesc1.RedPrimary[0],
+                     outDesc1.RedPrimary[1]);
+          CLog::LogF(LOGNOTICE, "GreenPrimary = {0:0.3f}, {1:0.3f}", outDesc1.GreenPrimary[0],
+                     outDesc1.GreenPrimary[1]);
+          CLog::LogF(LOGNOTICE, "BluePrimary = {0:0.3f}, {1:0.3f}", outDesc1.BluePrimary[0],
+                     outDesc1.BluePrimary[1]);
+          CLog::LogF(LOGNOTICE, "WhitePoint = {0:0.3f}, {1:0.3f}", outDesc1.WhitePoint[0],
+                     outDesc1.WhitePoint[1]);
+          CLog::LogF(LOGNOTICE, "MinLuminance = {0:0.4f}", outDesc1.MinLuminance);
+          CLog::LogF(LOGNOTICE, "MaxLuminance  = {0:0.0f}", outDesc1.MaxLuminance);
+          CLog::LogF(LOGNOTICE, "MaxFullFrameLuminance = {0:0.0f}",
+                     outDesc1.MaxFullFrameLuminance);
+        }
+      }
+      else
+      {
+        CLog::LogF(LOGERROR, "IDXGIOutput6 -> GetDesc1 FAILED");
+      }
+    }
+  }
+}
+
+void DX::DeviceResources::SetHdrMetaData(DXGI_HDR_METADATA_HDR10& hdr10) const
+{
+  ComPtr<IDXGISwapChain4> swapChain4;
+
+  if (SUCCEEDED(m_swapChain.As(&swapChain4)))
+  {
+    const DXGI_COLOR_SPACE_TYPE cs = DX::Windowing()->UseLimitedColor()
+                                         ? DXGI_COLOR_SPACE_RGB_STUDIO_G2084_NONE_P2020
+                                         : DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
+
+    if (SUCCEEDED(swapChain4->SetHDRMetaData(DXGI_HDR_METADATA_TYPE_HDR10, sizeof(hdr10), &hdr10)))
+    {
+      constexpr double FACTOR_1 = 50000.0;
+      constexpr double FACTOR_2 = 10000.0;
+      double RP_0 = (double)(hdr10.RedPrimary[0]) / FACTOR_1;
+      double RP_1 = (double)(hdr10.RedPrimary[1]) / FACTOR_1;
+      double GP_0 = (double)(hdr10.GreenPrimary[0]) / FACTOR_1;
+      double GP_1 = (double)(hdr10.GreenPrimary[1]) / FACTOR_1;
+      double BP_0 = (double)(hdr10.BluePrimary[0]) / FACTOR_1;
+      double BP_1 = (double)(hdr10.BluePrimary[1]) / FACTOR_1;
+      double WP_0 = (double)(hdr10.WhitePoint[0]) / FACTOR_1;
+      double WP_1 = (double)(hdr10.WhitePoint[1]) / FACTOR_1;
+      double Max_ML = (double)(hdr10.MaxMasteringLuminance) / FACTOR_2;
+      double min_ML = (double)(hdr10.MinMasteringLuminance) / FACTOR_2;
+
+      CLog::LogF(LOGNOTICE,
+                 "STREAM Static HDR Metadata => RP {0:0.3f} {1:0.3f} | GP {2:0.3f} {3:0.3f} | BP "
+                 "{4:0.3f} {5:0.3f} | WP {6:0.3f} "
+                 "{7:0.3f} | MAX ML {8:0.0f} "
+                 "| min ML {9:0.3f} | Max CLL {10:d} | Max FALL {11:d}",
+                 RP_0, RP_1, GP_0, GP_1, BP_0, BP_1, WP_0, WP_1, Max_ML, min_ML,
+                 hdr10.MaxContentLightLevel, hdr10.MaxFrameAverageLightLevel);
+    }
+    else
+    {
+      CLog::LogF(LOGERROR, "IDXGISwapChain4 -> SetHDRMetaData FAILED");
+    }
+
+    if (SUCCEEDED(swapChain4->SetColorSpace1(cs)))
+    {
+      CLog::LogF(LOGNOTICE, "IDXGISwapChain4 -> SetColorSpace1 OK");
+    }
+    else
+    {
+      CLog::LogF(LOGERROR, "IDXGISwapChain4 -> SetColorSpace1 FAILED");
+    }
+  }
+}
+
+void DX::DeviceResources::ClearHdrMetaData() const
+{
+  ComPtr<IDXGISwapChain3> swapChain3;
+
+  CLog::LogF(LOGNOTICE, "Restored SDR rendering.");
+
+  if (SUCCEEDED(m_swapChain.As(&swapChain3)))
+  {
+    const DXGI_COLOR_SPACE_TYPE cs = DX::Windowing()->UseLimitedColor()
+                                         ? DXGI_COLOR_SPACE_RGB_STUDIO_G22_NONE_P709
+                                         : DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+
+    swapChain3->SetColorSpace1(cs);
+  }
+}

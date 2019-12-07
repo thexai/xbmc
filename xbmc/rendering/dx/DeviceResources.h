@@ -12,9 +12,9 @@
 #include <wrl/client.h>
 #include <concrt.h>
 #if defined(TARGET_WINDOWS_STORE)
-#include <dxgi1_3.h>
+#include <dxgi1_6.h>
 #else
-#include <dxgi1_2.h>
+#include <dxgi1_6.h>
 #include <easyhook/easyhook.h>
 #endif
 #include <functional>
@@ -81,6 +81,14 @@ namespace DX
 
     bool SetFullScreen(bool fullscreen, RESOLUTION_INFO& res);
 
+    void DetectDisplayHdrCapable(bool& hdr_capable, bool& hdr_enabled);
+    void SetHdrMetaData(DXGI_HDR_METADATA_HDR10& hdr10) const;
+    void ClearHdrMetaData() const;
+    bool Is10BitSwapchain() const { return m_Is10bSwapchain; }
+    void Set10BitSwapchain(bool flag) { m_Is10bSwapchain = flag; }
+    void SetHdr10Output(DXGI_HDR_METADATA_HDR10 hdr10) { m_hdr10Output = hdr10; }
+    DXGI_HDR_METADATA_HDR10 GetHdr10Output() const { return m_hdr10Output; }
+
     // DX resources registration
     void Register(ID3DResource *resource);
     void Unregister(ID3DResource *resource);
@@ -131,6 +139,7 @@ namespace DX
     Microsoft::WRL::ComPtr<IDXGIFactory2> m_dxgiFactory;
     Microsoft::WRL::ComPtr<IDXGIAdapter1> m_adapter;
     Microsoft::WRL::ComPtr<IDXGIOutput1> m_output;
+    Microsoft::WRL::ComPtr<IDXGIOutput6> m_output6;
 
     Microsoft::WRL::ComPtr<ID3D11Device1> m_d3dDevice;
     Microsoft::WRL::ComPtr<ID3D11DeviceContext1> m_d3dContext;
@@ -161,5 +170,7 @@ namespace DX
     std::vector<ID3DResource*> m_resources;
     bool m_stereoEnabled;
     bool m_bDeviceCreated;
+    bool m_Is10bSwapchain;
+    DXGI_HDR_METADATA_HDR10 m_hdr10Output;
   };
 }

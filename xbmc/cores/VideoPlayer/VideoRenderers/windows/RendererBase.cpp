@@ -130,6 +130,13 @@ CRendererBase::CRendererBase(CVideoSettings& videoSettings)
 
 CRendererBase::~CRendererBase()
 {
+  bool hdr_capable, hdr_enabled;
+  DX::DeviceResources::Get()->DetectDisplayHdrCapable(hdr_capable, hdr_enabled);
+
+  if (hdr_enabled && DX::DeviceResources::Get()->Is10BitSwapchain())
+  {
+    DX::DeviceResources::Get()->ClearHdrMetaData();
+  }
   Flush(false);
 }
 
@@ -161,6 +168,40 @@ bool CRendererBase::Configure(const VideoPicture& picture, float fps, unsigned o
   m_sourceHeight = picture.iHeight;
   m_fps = fps;
   m_renderOrientation = orientation;
+
+  if (picture.hasDisplayMetadata || picture.color_primaries == AVCOL_PRI_BT2020)
+  {
+    bool hdr_capable, hdr_enabled;
+
+    DX::DeviceResources::Get()->DetectDisplayHdrCapable(hdr_capable, hdr_enabled);
+
+    if (hdr_enabled)
+    {
+      constexpr double FACTOR_1 = 50000.0;
+      constexpr double FACTOR_2 = 10000.0;
+      AVMasteringDisplayMetadata dm = picture.displayMetadata;
+      AVContentLightMetadata lm = picture.lightMetadata;
+      DXGI_HDR_METADATA_HDR10 hdr10 = {};
+      hdr10.RedPrimary[0] = (UINT16)(FACTOR_1 * av_q2d(dm.display_primaries[0][0]));
+      hdr10.RedPrimary[1] = (UINT16)(FACTOR_1 * av_q2d(dm.display_primaries[0][1]));
+      hdr10.GreenPrimary[0] = (UINT16)(FACTOR_1 * av_q2d(dm.display_primaries[1][0]));
+      hdr10.GreenPrimary[1] = (UINT16)(FACTOR_1 * av_q2d(dm.display_primaries[1][1]));
+      hdr10.BluePrimary[0] = (UINT16)(FACTOR_1 * av_q2d(dm.display_primaries[2][0]));
+      hdr10.BluePrimary[1] = (UINT16)(FACTOR_1 * av_q2d(dm.display_primaries[2][1]));
+      hdr10.WhitePoint[0] = (UINT16)(FACTOR_1 * av_q2d(dm.white_point[0]));
+      hdr10.WhitePoint[1] = (UINT16)(FACTOR_1 * av_q2d(dm.white_point[1]));
+      hdr10.MaxMasteringLuminance = (UINT)(FACTOR_2 * av_q2d(dm.max_luminance));
+      hdr10.MinMasteringLuminance = (UINT)(FACTOR_2 * av_q2d(dm.min_luminance));
+      hdr10.MaxContentLightLevel = (UINT16)(lm.MaxCLL);
+      hdr10.MaxFrameAverageLightLevel = (UINT16)(lm.MaxFALL);
+      DX::DeviceResources::Get()->SetHdrMetaData(hdr10);
+    }
+  }
+  else
+  {
+    if (DX::DeviceResources::Get()->Is10BitSwapchain())
+      DX::DeviceResources::Get()->ClearHdrMetaData();
+  }
 
   return true;
 }

@@ -513,9 +513,10 @@ void DX::DeviceResources::ResizeBuffers()
 
   CLog::LogF(LOGDEBUG, "resize buffers.");
 
-  bool bHWStereoEnabled = RENDER_STEREO_MODE_HARDWAREBASED == CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoMode();
+  bool bHWStereoEnabled = RENDER_STEREO_MODE_HARDWAREBASED ==
+                          CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoMode();
   bool windowed = true;
-  bool hdr_enabled = false;
+  bool isHdrEnabled = false;
   HRESULT hr = E_FAIL;
 
   DXGI_SWAP_CHAIN_DESC1 scDesc = { 0 };
@@ -547,10 +548,10 @@ void DX::DeviceResources::ResizeBuffers()
   if (m_swapChain)
   {
     bool hdr_capable;
-    DetectDisplayHdrCapable(hdr_capable, hdr_enabled);
+    DetectDisplayHdrCapable(hdr_capable, isHdrEnabled);
 
     // check if swapchain needs to be recreated at 10 bit
-    if (Is10BitSwapchain() == false && hdr_enabled)
+    if (Is10BitSwapchain() == false && isHdrEnabled)
     {
       BOOL bFullcreen = 0;
       m_swapChain->GetFullscreenState(&bFullcreen, nullptr);
@@ -609,9 +610,9 @@ void DX::DeviceResources::ResizeBuffers()
     scFSDesc.Windowed = windowed;
 
     ComPtr<IDXGISwapChain1> swapChain;
-    if ( m_d3dFeatureLevel >= D3D_FEATURE_LEVEL_11_0
-      && !bHWStereoEnabled
-      && (CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_bTry10bitOutput || hdr_enabled))
+    if (m_d3dFeatureLevel >= D3D_FEATURE_LEVEL_11_0 && !bHWStereoEnabled &&
+        (CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_bTry10bitOutput ||
+         isHdrEnabled))
     {
       swapChainDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
       hr = CreateSwapChain(swapChainDesc, scFSDesc, &swapChain);
@@ -637,7 +638,8 @@ void DX::DeviceResources::ResizeBuffers()
       hr = CreateSwapChain(swapChainDesc, scFSDesc, &swapChain); CHECK_ERR();
 
       // fallback to split_horizontal mode.
-      CServiceBroker::GetWinSystem()->GetGfxContext().SetStereoMode(RENDER_STEREO_MODE_SPLIT_HORIZONTAL);
+      CServiceBroker::GetWinSystem()->GetGfxContext().SetStereoMode(
+          RENDER_STEREO_MODE_SPLIT_HORIZONTAL);
     }
 
     if (FAILED(hr))
@@ -1156,18 +1158,18 @@ void DX::DeviceResources::DetectDisplayHdrCapable(bool& hdr_capable, bool& hdr_e
           constexpr double FACTOR_1 = 50000.0;
           constexpr double FACTOR_2 = 10000.0;
           DXGI_HDR_METADATA_HDR10 hdr10 = {};
-          hdr10.RedPrimary[0] = (UINT16)(FACTOR_1 * outDesc1.RedPrimary[0]);
-          hdr10.RedPrimary[1] = (UINT16)(FACTOR_1 * outDesc1.RedPrimary[1]);
-          hdr10.GreenPrimary[0] = (UINT16)(FACTOR_1 * outDesc1.GreenPrimary[0]);
-          hdr10.GreenPrimary[1] = (UINT16)(FACTOR_1 * outDesc1.GreenPrimary[1]);
-          hdr10.BluePrimary[0] = (UINT16)(FACTOR_1 * outDesc1.BluePrimary[0]);
-          hdr10.BluePrimary[1] = (UINT16)(FACTOR_1 * outDesc1.BluePrimary[1]);
-          hdr10.WhitePoint[0] = (UINT16)(FACTOR_1 * outDesc1.WhitePoint[0]);
-          hdr10.WhitePoint[1] = (UINT16)(FACTOR_1 * outDesc1.WhitePoint[1]);
-          hdr10.MaxMasteringLuminance = (UINT)(FACTOR_2 * outDesc1.MaxLuminance);
-          hdr10.MinMasteringLuminance = (UINT)(FACTOR_2 * outDesc1.MinLuminance);
-          hdr10.MaxContentLightLevel = (UINT16)(outDesc1.MaxFullFrameLuminance);
-          hdr10.MaxFrameAverageLightLevel = (UINT16)(outDesc1.MaxFullFrameLuminance);
+          hdr10.RedPrimary[0] = static_cast<uint16_t>(FACTOR_1 * outDesc1.RedPrimary[0]);
+          hdr10.RedPrimary[1] = static_cast<uint16_t>(FACTOR_1 * outDesc1.RedPrimary[1]);
+          hdr10.GreenPrimary[0] = static_cast<uint16_t>(FACTOR_1 * outDesc1.GreenPrimary[0]);
+          hdr10.GreenPrimary[1] = static_cast<uint16_t>(FACTOR_1 * outDesc1.GreenPrimary[1]);
+          hdr10.BluePrimary[0] = static_cast<uint16_t>(FACTOR_1 * outDesc1.BluePrimary[0]);
+          hdr10.BluePrimary[1] = static_cast<uint16_t>(FACTOR_1 * outDesc1.BluePrimary[1]);
+          hdr10.WhitePoint[0] = static_cast<uint16_t>(FACTOR_1 * outDesc1.WhitePoint[0]);
+          hdr10.WhitePoint[1] = static_cast<uint16_t>(FACTOR_1 * outDesc1.WhitePoint[1]);
+          hdr10.MaxMasteringLuminance = static_cast<uint32_t>(FACTOR_2 * outDesc1.MaxLuminance);
+          hdr10.MinMasteringLuminance = static_cast<uint32_t>(FACTOR_2 * outDesc1.MinLuminance);
+          hdr10.MaxContentLightLevel = static_cast<uint16_t>(outDesc1.MaxFullFrameLuminance);
+          hdr10.MaxFrameAverageLightLevel = static_cast<uint16_t>(outDesc1.MaxFullFrameLuminance);
           //Saves Monitor parameters for use later
           SetHdr10Output(hdr10);
         }
@@ -1206,8 +1208,7 @@ void DX::DeviceResources::DetectDisplayHdrCapable(bool& hdr_capable, bool& hdr_e
                      outDesc1.WhitePoint[1]);
           CLog::LogF(LOGNOTICE, "MinLuminance = {0:0.4f}", outDesc1.MinLuminance);
           CLog::LogF(LOGNOTICE, "MaxLuminance  = {0:0.0f}", outDesc1.MaxLuminance);
-          CLog::LogF(LOGNOTICE, "MaxFullFrameLuminance = {0:0.0f}",
-                     outDesc1.MaxFullFrameLuminance);
+          CLog::LogF(LOGNOTICE, "MaxFullFrameLuminance = {0:0.0f}", outDesc1.MaxFullFrameLuminance);
         }
       }
       else
@@ -1232,16 +1233,16 @@ void DX::DeviceResources::SetHdrMetaData(DXGI_HDR_METADATA_HDR10& hdr10) const
     {
       constexpr double FACTOR_1 = 50000.0;
       constexpr double FACTOR_2 = 10000.0;
-      double RP_0 = (double)(hdr10.RedPrimary[0]) / FACTOR_1;
-      double RP_1 = (double)(hdr10.RedPrimary[1]) / FACTOR_1;
-      double GP_0 = (double)(hdr10.GreenPrimary[0]) / FACTOR_1;
-      double GP_1 = (double)(hdr10.GreenPrimary[1]) / FACTOR_1;
-      double BP_0 = (double)(hdr10.BluePrimary[0]) / FACTOR_1;
-      double BP_1 = (double)(hdr10.BluePrimary[1]) / FACTOR_1;
-      double WP_0 = (double)(hdr10.WhitePoint[0]) / FACTOR_1;
-      double WP_1 = (double)(hdr10.WhitePoint[1]) / FACTOR_1;
-      double Max_ML = (double)(hdr10.MaxMasteringLuminance) / FACTOR_2;
-      double min_ML = (double)(hdr10.MinMasteringLuminance) / FACTOR_2;
+      double RP_0 = static_cast<double>(hdr10.RedPrimary[0]) / FACTOR_1;
+      double RP_1 = static_cast<double>(hdr10.RedPrimary[1]) / FACTOR_1;
+      double GP_0 = static_cast<double>(hdr10.GreenPrimary[0]) / FACTOR_1;
+      double GP_1 = static_cast<double>(hdr10.GreenPrimary[1]) / FACTOR_1;
+      double BP_0 = static_cast<double>(hdr10.BluePrimary[0]) / FACTOR_1;
+      double BP_1 = static_cast<double>(hdr10.BluePrimary[1]) / FACTOR_1;
+      double WP_0 = static_cast<double>(hdr10.WhitePoint[0]) / FACTOR_1;
+      double WP_1 = static_cast<double>(hdr10.WhitePoint[1]) / FACTOR_1;
+      double Max_ML = static_cast<double>(hdr10.MaxMasteringLuminance) / FACTOR_2;
+      double min_ML = static_cast<double>(hdr10.MinMasteringLuminance) / FACTOR_2;
 
       CLog::LogF(LOGNOTICE,
                  "STREAM Static HDR Metadata => RP {0:0.3f} {1:0.3f} | GP {2:0.3f} {3:0.3f} | BP "

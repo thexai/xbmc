@@ -13,8 +13,10 @@
 #include "AppParamParser.h"
 #include "AppInboundProtocol.h"
 #include "dialogs/GUIDialogBusy.h"
+#include "dialogs/GUIDialogKaiToast.h"
 #include "events/EventLog.h"
 #include "events/NotificationEvent.h"
+#include "HDRStatus.h"
 #include "interfaces/builtins/Builtins.h"
 #include "utils/JobManager.h"
 #include "utils/Variant.h"
@@ -489,6 +491,12 @@ bool CApplication::Create(const CAppParamParser &params)
   CLog::Log(LOGNOTICE, "%s", CWIN32Util::GetResInfoString().c_str());
   CLog::Log(LOGNOTICE, "Running with %s rights", (CWIN32Util::IsCurrentUserLocalAdministrator() == TRUE) ? "administrator" : "restricted");
   CLog::Log(LOGNOTICE, "Aero is %s", (g_sysinfo.IsAeroDisabled() == true) ? "disabled" : "enabled");
+  HDR_STATUS hdrStatus = CWIN32Util::GetWindowsHDRStatus();
+  if (hdrStatus == HDR_STATUS::HDR_UNSUPPORTED)
+    CLog::Log(LOGNOTICE, "Display is not HDR capable or cannot be detected");
+  else
+    CLog::Log(LOGNOTICE, "Display HDR capable is detected and Windows HDR switch is %s",
+              (hdrStatus == HDR_STATUS::HDR_ON) ? "ON" : "OFF");
 #endif
 #if defined(TARGET_ANDROID)
   CLog::Log(LOGNOTICE,
@@ -1621,6 +1629,29 @@ bool CApplication::OnAction(const CAction &action)
   if (action.GetID() == ACTION_TAKE_SCREENSHOT)
   {
     CScreenShot::TakeScreenshot();
+    return true;
+  }
+  // Display HDR : toggle HDR on/off
+  if (action.GetID() == ACTION_HDR_TOGGLE)
+  {
+    HDR_STATUS hdrStatus = CServiceBroker::GetWinSystem()->ToggleHDR();
+
+    std::string caption = "";
+    std::string message = "";
+
+    if (hdrStatus == HDR_STATUS::HDR_OFF)
+    {
+      caption = "HDR is OFF";
+      message = "Display HDR is Off";
+    }
+    else if (hdrStatus == HDR_STATUS::HDR_ON)
+    {
+      caption = "HDR is ON";
+      message = "Display HDR is On";
+    }
+    if (caption.length())
+      CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::eMessageType::Info, caption,
+                                            message, TOAST_DISPLAY_TIME, true, TOAST_DISPLAY_TIME);
     return true;
   }
   // built in functions : execute the built-in

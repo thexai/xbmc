@@ -182,18 +182,18 @@ bool CRendererBase::Configure(const VideoPicture& picture, float fps, unsigned o
       AVMasteringDisplayMetadata dm = picture.displayMetadata;
       AVContentLightMetadata lm = picture.lightMetadata;
       DXGI_HDR_METADATA_HDR10 hdr10 = {};
-      hdr10.RedPrimary[0] = (UINT16)(FACTOR_1 * av_q2d(dm.display_primaries[0][0]));
-      hdr10.RedPrimary[1] = (UINT16)(FACTOR_1 * av_q2d(dm.display_primaries[0][1]));
-      hdr10.GreenPrimary[0] = (UINT16)(FACTOR_1 * av_q2d(dm.display_primaries[1][0]));
-      hdr10.GreenPrimary[1] = (UINT16)(FACTOR_1 * av_q2d(dm.display_primaries[1][1]));
-      hdr10.BluePrimary[0] = (UINT16)(FACTOR_1 * av_q2d(dm.display_primaries[2][0]));
-      hdr10.BluePrimary[1] = (UINT16)(FACTOR_1 * av_q2d(dm.display_primaries[2][1]));
-      hdr10.WhitePoint[0] = (UINT16)(FACTOR_1 * av_q2d(dm.white_point[0]));
-      hdr10.WhitePoint[1] = (UINT16)(FACTOR_1 * av_q2d(dm.white_point[1]));
-      hdr10.MaxMasteringLuminance = (UINT)(FACTOR_2 * av_q2d(dm.max_luminance));
-      hdr10.MinMasteringLuminance = (UINT)(FACTOR_2 * av_q2d(dm.min_luminance));
-      hdr10.MaxContentLightLevel = (UINT16)(lm.MaxCLL);
-      hdr10.MaxFrameAverageLightLevel = (UINT16)(lm.MaxFALL);
+      hdr10.RedPrimary[0] = static_cast<uint16_t>(FACTOR_1 * av_q2d(dm.display_primaries[0][0]));
+      hdr10.RedPrimary[1] = static_cast<uint16_t>(FACTOR_1 * av_q2d(dm.display_primaries[0][1]));
+      hdr10.GreenPrimary[0] = static_cast<uint16_t>(FACTOR_1 * av_q2d(dm.display_primaries[1][0]));
+      hdr10.GreenPrimary[1] = static_cast<uint16_t>(FACTOR_1 * av_q2d(dm.display_primaries[1][1]));
+      hdr10.BluePrimary[0] = static_cast<uint16_t>(FACTOR_1 * av_q2d(dm.display_primaries[2][0]));
+      hdr10.BluePrimary[1] = static_cast<uint16_t>(FACTOR_1 * av_q2d(dm.display_primaries[2][1]));
+      hdr10.WhitePoint[0] = static_cast<uint16_t>(FACTOR_1 * av_q2d(dm.white_point[0]));
+      hdr10.WhitePoint[1] = static_cast<uint16_t>(FACTOR_1 * av_q2d(dm.white_point[1]));
+      hdr10.MaxMasteringLuminance = static_cast<uint32_t>(FACTOR_2 * av_q2d(dm.max_luminance));
+      hdr10.MinMasteringLuminance = static_cast<uint32_t>(FACTOR_2 * av_q2d(dm.min_luminance));
+      hdr10.MaxContentLightLevel = static_cast<uint16_t>(lm.MaxCLL);
+      hdr10.MaxFrameAverageLightLevel = static_cast<uint16_t>(lm.MaxFALL);
       DX::DeviceResources::Get()->SetHdrMetaData(hdr10);
     }
   }

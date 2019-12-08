@@ -14,6 +14,7 @@
 #include "VideoRenderers/VideoShaders/WinVideoFilter.h"
 
 #include <d3d11.h>
+#include <dxgi1_5.h>
 #include <vector>
 extern "C" {
 #include <libavutil/mastering_display_metadata.h>
@@ -120,6 +121,7 @@ public:
   static DXGI_FORMAT GetDXGIFormat(const VideoPicture &picture);
   static DXGI_FORMAT GetDXGIFormat(CVideoBuffer* videoBuffer);
   static AVPixelFormat GetAVFormat(DXGI_FORMAT dxgi_format);
+  static DXGI_HDR_METADATA_HDR10 GetDXIHDRMetaDataFormat(const VideoPicture& vp);
 
 protected:
   explicit CRendererBase(CVideoSettings& videoSettings);

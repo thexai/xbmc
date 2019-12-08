@@ -530,50 +530,24 @@ bool CProcessorHD::Render(CRect src, CRect dst, ID3D11Resource* target, CRenderB
       ComPtr<ID3D11VideoContext2> videoCtx2;
       if (SUCCEEDED(m_pVideoContext.As(&videoCtx2)) && views[2]->hasDisplayMetadata)
       {
-        constexpr double FACTOR_1 = 50000.0;
-        constexpr double FACTOR_2 = 10000.0;
+        VideoPicture vp;
+        vp.displayMetadata = views[2]->displayMetadata;
+        vp.lightMetadata = views[2]->lightMetadata;
+        vp.hasLightMetadata = views[2]->hasLightMetadata;
 
-        DXGI_HDR_METADATA_HDR10 hdr10 = {};
-        hdr10.WhitePoint[0] =
-            static_cast<uint16_t>(FACTOR_1 * av_q2d(views[2]->displayMetadata.white_point[0]));
-        hdr10.WhitePoint[1] =
-            static_cast<uint16_t>(FACTOR_1 * av_q2d(views[2]->displayMetadata.white_point[1]));
-        if (views[2]->displayMetadata.has_primaries)
-        {
-          hdr10.RedPrimary[0] = static_cast<uint16_t>(
-              FACTOR_1 * av_q2d(views[2]->displayMetadata.display_primaries[0][0]));
-          hdr10.RedPrimary[1] = static_cast<uint16_t>(
-              FACTOR_1 * av_q2d(views[2]->displayMetadata.display_primaries[0][1]));
-          hdr10.GreenPrimary[0] = static_cast<uint16_t>(
-              FACTOR_1 * av_q2d(views[2]->displayMetadata.display_primaries[1][0]));
-          hdr10.GreenPrimary[1] = static_cast<uint16_t>(
-              FACTOR_1 * av_q2d(views[2]->displayMetadata.display_primaries[1][1]));
-          hdr10.BluePrimary[0] = static_cast<uint16_t>(
-              FACTOR_1 * av_q2d(views[2]->displayMetadata.display_primaries[2][0]));
-          hdr10.BluePrimary[1] = static_cast<uint16_t>(
-              FACTOR_1 * av_q2d(views[2]->displayMetadata.display_primaries[2][1]));
-        }
-        if (views[2]->displayMetadata.has_luminance)
-        {
-          hdr10.MinMasteringLuminance =
-              static_cast<uint32_t>(FACTOR_2 * av_q2d(views[2]->displayMetadata.min_luminance));
-          hdr10.MaxMasteringLuminance =
-              static_cast<uint32_t>(FACTOR_2 * av_q2d(views[2]->displayMetadata.max_luminance));
-        }
-        if (views[2]->hasLightMetadata)
-        {
-          hdr10.MaxContentLightLevel = static_cast<uint16_t>(views[2]->lightMetadata.MaxCLL);
-          hdr10.MaxFrameAverageLightLevel = static_cast<uint16_t>(views[2]->lightMetadata.MaxFALL);
-        }
+        DXGI_HDR_METADATA_HDR10 hdr10Stream = CRendererBase::GetDXIHDRMetaDataFormat(vp);
+
+        //Passes Stream HDR Dynamic metadata to VideoProcessor
         videoCtx2->VideoProcessorSetStreamHDRMetaData(m_pVideoProcessor.Get(), DEFAULT_STREAM_INDEX,
-                                                      DXGI_HDR_METADATA_TYPE_HDR10, sizeof(hdr10),
-                                                      &hdr10);
+                                                      DXGI_HDR_METADATA_TYPE_HDR10,
+                                                      sizeof(hdr10Stream), &hdr10Stream);
 
-        //Passes Monitor parameters to VideoProcessor, it needs to know Stream parameters and Display/Monitor parameters
-        DXGI_HDR_METADATA_HDR10 hdr10_output = DX::DeviceResources::Get()->GetHdr10Output();
+        DXGI_HDR_METADATA_HDR10 hdr10Output = DX::DeviceResources::Get()->GetHdr10Output();
+
+        //Passes Display HDR parameters (EDID) to VideoProcessor
         videoCtx2->VideoProcessorSetOutputHDRMetaData(m_pVideoProcessor.Get(),
                                                       DXGI_HDR_METADATA_TYPE_HDR10,
-                                                      sizeof(hdr10_output), &hdr10_output);
+                                                      sizeof(hdr10Output), &hdr10Output);
       }
     }
   }

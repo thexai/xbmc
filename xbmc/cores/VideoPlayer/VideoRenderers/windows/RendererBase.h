@@ -7,16 +7,15 @@
  */
 #pragma once
 
+#include "cores/VideoSettings.h"
+#include "guilib/D3DResource.h"
 #include "VideoRenderers/ColorManager.h"
 #include "VideoRenderers/RenderInfo.h"
 #include "VideoRenderers/VideoShaders/WinVideoFilter.h"
-#include "cores/VideoSettings.h"
-#include "guilib/D3DResource.h"
-
-#include <vector>
 
 #include <d3d11.h>
 #include <dxgi1_5.h>
+#include <vector>
 extern "C" {
 #include <libavutil/mastering_display_metadata.h>
 }

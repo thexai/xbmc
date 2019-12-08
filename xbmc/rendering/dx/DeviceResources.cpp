@@ -518,8 +518,8 @@ void DX::DeviceResources::ResizeBuffers()
   bool windowed = true;
   bool isHdrEnabled = false;
   HRESULT hr = E_FAIL;
-
   DXGI_SWAP_CHAIN_DESC1 scDesc = { 0 };
+
   if (m_swapChain)
   {
     BOOL bFullcreen = 0;
@@ -529,35 +529,17 @@ void DX::DeviceResources::ResizeBuffers()
       windowed = false;
     }
 
+    bool hdr_capable;
     // check if swapchain needs to be recreated
     m_swapChain->GetDesc1(&scDesc);
-    if ((scDesc.Stereo == TRUE) != bHWStereoEnabled)
+    DetectDisplayHdrCapable(hdr_capable, isHdrEnabled);
+
+    if ((scDesc.Stereo == TRUE) != bHWStereoEnabled ||
+        (Is10BitSwapchain() == false && isHdrEnabled))
     {
       // check fullscreen state and go to windowing if necessary
       if (!!bFullcreen)
       {
-        m_swapChain->SetFullscreenState(false, nullptr); // mandatory before releasing swapchain
-      }
-
-      m_swapChain = nullptr;
-      m_deferrContext->Flush();
-      m_d3dContext->Flush();
-    }
-  }
-
-  if (m_swapChain)
-  {
-    bool hdr_capable;
-    DetectDisplayHdrCapable(hdr_capable, isHdrEnabled);
-
-    // check if swapchain needs to be recreated at 10 bit
-    if (Is10BitSwapchain() == false && isHdrEnabled)
-    {
-      BOOL bFullcreen = 0;
-      m_swapChain->GetFullscreenState(&bFullcreen, nullptr);
-      if (!!bFullcreen)
-      {
-        windowed = false;
         m_swapChain->SetFullscreenState(false, nullptr); // mandatory before releasing swapchain
       }
       m_swapChain = nullptr;

@@ -520,12 +520,14 @@ bool CProcessorHD::Render(CRect src, CRect dst, ID3D11Resource* target, CRenderB
                                                         : DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
     }
 
-    videoCtx1->VideoProcessorSetStreamColorSpace1(m_pVideoProcessor.Get(), DEFAULT_STREAM_INDEX, source_color);
+    videoCtx1->VideoProcessorSetStreamColorSpace1(m_pVideoProcessor.Get(), DEFAULT_STREAM_INDEX,
+                                                  source_color);
     videoCtx1->VideoProcessorSetOutputColorSpace1(m_pVideoProcessor.Get(), target_color);
     // makes target available for processing in shaders
     videoCtx1->VideoProcessorSetOutputShaderUsage(m_pVideoProcessor.Get(), 1);
 
-    if (m_bSupportHDR10)
+    if (m_bSupportHDR10 && (target_color == DXGI_COLOR_SPACE_RGB_STUDIO_G2084_NONE_P2020 ||
+                            target_color == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020))
     {
       ComPtr<ID3D11VideoContext2> videoCtx2;
       if (SUCCEEDED(m_pVideoContext.As(&videoCtx2)) && views[2]->hasDisplayMetadata)
@@ -535,16 +537,14 @@ bool CProcessorHD::Render(CRect src, CRect dst, ID3D11Resource* target, CRenderB
         vp.lightMetadata = views[2]->lightMetadata;
         vp.hasLightMetadata = views[2]->hasLightMetadata;
 
+        // Passes Stream HDR Dynamic metadata to VideoProcessor
         DXGI_HDR_METADATA_HDR10 hdr10Stream = CRendererBase::GetDXIHDRMetaDataFormat(vp);
-
-        //Passes Stream HDR Dynamic metadata to VideoProcessor
         videoCtx2->VideoProcessorSetStreamHDRMetaData(m_pVideoProcessor.Get(), DEFAULT_STREAM_INDEX,
                                                       DXGI_HDR_METADATA_TYPE_HDR10,
                                                       sizeof(hdr10Stream), &hdr10Stream);
 
+        // Passes Display HDR parameters (EDID) to VideoProcessor
         DXGI_HDR_METADATA_HDR10 hdr10Output = DX::DeviceResources::Get()->GetHdr10Output();
-
-        //Passes Display HDR parameters (EDID) to VideoProcessor
         videoCtx2->VideoProcessorSetOutputHDRMetaData(m_pVideoProcessor.Get(),
                                                       DXGI_HDR_METADATA_TYPE_HDR10,
                                                       sizeof(hdr10Output), &hdr10Output);

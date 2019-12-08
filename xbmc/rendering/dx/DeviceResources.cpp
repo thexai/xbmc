@@ -1230,7 +1230,7 @@ void DX::DeviceResources::SetHdrMetaData(DXGI_HDR_METADATA_HDR10& hdr10) const
                  "STREAM Static HDR Metadata => RP {0:0.3f} {1:0.3f} | GP {2:0.3f} {3:0.3f} | BP "
                  "{4:0.3f} {5:0.3f} | WP {6:0.3f} "
                  "{7:0.3f} | MAX ML {8:0.0f} "
-                 "| min ML {9:0.3f} | Max CLL {10:d} | Max FALL {11:d}",
+                 "| min ML {9:0.3f} | Max CLL {10:0.0f} | Max FALL {11:0.0f}",
                  RP_0, RP_1, GP_0, GP_1, BP_0, BP_1, WP_0, WP_1, Max_ML, min_ML,
                  hdr10.MaxContentLightLevel, hdr10.MaxFrameAverageLightLevel);
     }

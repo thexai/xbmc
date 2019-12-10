@@ -1236,7 +1236,7 @@ void DX::DeviceResources::SetHdrMetaData(DXGI_HDR_METADATA_HDR10& hdr10) const
     }
     else
     {
-      CLog::LogF(LOGERROR, "IDXGISwapChain4 -> SetHDRMetaData FAILED");
+      CLog::LogF(LOGERROR, "DXGI SetHDRMetaData failed");
     }
 
     if (SUCCEEDED(swapChain4->SetColorSpace1(cs)))

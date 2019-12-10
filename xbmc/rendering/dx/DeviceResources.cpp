@@ -1153,7 +1153,7 @@ void DX::DeviceResources::DetectDisplayHdrCapable(bool& hdr_capable, bool& hdr_e
           hdr10.MaxContentLightLevel = static_cast<uint16_t>(outDesc1.MaxFullFrameLuminance);
           hdr10.MaxFrameAverageLightLevel = static_cast<uint16_t>(outDesc1.MaxFullFrameLuminance);
           //Saves Monitor parameters for use later
-          SetHdr10Output(hdr10);
+          m_hdr10Output = hdr10;
         }
         else if (outDesc1.MaxLuminance >= 400.0)
         {

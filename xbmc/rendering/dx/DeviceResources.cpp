@@ -637,7 +637,7 @@ void DX::DeviceResources::ResizeBuffers()
     }
     else
     {
-      Set10BitSwapchain(false);
+      m_Is10bSwapchain = false;
       CLog::LogF(LOGNOTICE, "8 bit swapchain is used.");
     }
 

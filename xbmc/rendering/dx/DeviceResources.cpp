@@ -1254,7 +1254,7 @@ void DX::DeviceResources::ClearHdrMetaData() const
 {
   ComPtr<IDXGISwapChain3> swapChain3;
 
-  CLog::LogF(LOGNOTICE, "Restored SDR rendering.");
+  CLog::LogF(LOGDEBUG, "Restoring SDR rendering");
 
   if (SUCCEEDED(m_swapChain.As(&swapChain3)))
   {

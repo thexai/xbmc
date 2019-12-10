@@ -121,7 +121,7 @@ public:
   static DXGI_FORMAT GetDXGIFormat(const VideoPicture &picture);
   static DXGI_FORMAT GetDXGIFormat(CVideoBuffer* videoBuffer);
   static AVPixelFormat GetAVFormat(DXGI_FORMAT dxgi_format);
-  static DXGI_HDR_METADATA_HDR10 GetDXIHDRMetaDataFormat(const VideoPicture& vp);
+  static DXGI_HDR_METADATA_HDR10 GetDXGIHDR10MetaData(const VideoPicture& vp);
 
 protected:
   explicit CRendererBase(CVideoSettings& videoSettings);

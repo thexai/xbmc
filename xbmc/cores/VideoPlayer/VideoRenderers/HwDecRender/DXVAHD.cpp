@@ -537,17 +537,17 @@ bool CProcessorHD::Render(CRect src, CRect dst, ID3D11Resource* target, CRenderB
         vp.lightMetadata = views[2]->lightMetadata;
         vp.hasLightMetadata = views[2]->hasLightMetadata;
 
-        // Passes Stream HDR Dynamic metadata to VideoProcessor
-        DXGI_HDR_METADATA_HDR10 hdr10Stream = CRendererBase::GetDXIHDRMetaDataFormat(vp);
+        // Passes stream SEI HDR metadata to VideoProcessor (refresh changes during playback)
+        DXGI_HDR_METADATA_HDR10 hdr10Stream = CRendererBase::GetDXGIHDR10MetaData(vp);
         videoCtx2->VideoProcessorSetStreamHDRMetaData(m_pVideoProcessor.Get(), DEFAULT_STREAM_INDEX,
                                                       DXGI_HDR_METADATA_TYPE_HDR10,
                                                       sizeof(hdr10Stream), &hdr10Stream);
 
         // Passes Display HDR parameters (EDID) to VideoProcessor
-        DXGI_HDR_METADATA_HDR10 hdr10Output = DX::DeviceResources::Get()->GetHdr10Output();
+        DXGI_HDR_METADATA_HDR10 hdr10Display = DX::DeviceResources::Get()->GetHdr10Display();
         videoCtx2->VideoProcessorSetOutputHDRMetaData(m_pVideoProcessor.Get(),
                                                       DXGI_HDR_METADATA_TYPE_HDR10,
-                                                      sizeof(hdr10Output), &hdr10Output);
+                                                      sizeof(hdr10Display), &hdr10Display);
       }
     }
   }

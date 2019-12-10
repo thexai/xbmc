@@ -85,9 +85,7 @@ namespace DX
     void SetHdrMetaData(DXGI_HDR_METADATA_HDR10& hdr10) const;
     void ClearHdrMetaData() const;
     bool Is10BitSwapchain() const { return m_Is10bSwapchain; }
-    void Set10BitSwapchain(bool flag) { m_Is10bSwapchain = flag; }
-    void SetHdr10Output(DXGI_HDR_METADATA_HDR10 hdr10) { m_hdr10Output = hdr10; }
-    DXGI_HDR_METADATA_HDR10 GetHdr10Output() const { return m_hdr10Output; }
+    DXGI_HDR_METADATA_HDR10 GetHdr10Display() const { return m_displayHDR10; }
 
     // DX resources registration
     void Register(ID3DResource *resource);
@@ -139,7 +137,6 @@ namespace DX
     Microsoft::WRL::ComPtr<IDXGIFactory2> m_dxgiFactory;
     Microsoft::WRL::ComPtr<IDXGIAdapter1> m_adapter;
     Microsoft::WRL::ComPtr<IDXGIOutput1> m_output;
-    Microsoft::WRL::ComPtr<IDXGIOutput6> m_output6;
 
     Microsoft::WRL::ComPtr<ID3D11Device1> m_d3dDevice;
     Microsoft::WRL::ComPtr<ID3D11DeviceContext1> m_d3dContext;
@@ -171,6 +168,6 @@ namespace DX
     bool m_stereoEnabled;
     bool m_bDeviceCreated;
     bool m_Is10bSwapchain;
-    DXGI_HDR_METADATA_HDR10 m_hdr10Output;
+    DXGI_HDR_METADATA_HDR10 m_displayHDR10;
   };
 }

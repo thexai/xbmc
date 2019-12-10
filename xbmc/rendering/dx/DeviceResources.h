@@ -171,6 +171,6 @@ namespace DX
     bool m_stereoEnabled;
     bool m_bDeviceCreated;
     bool m_Is10bSwapchain;
-    DXGI_HDR_METADATA_HDR10 m_hdr10Output;
+    DXGI_HDR_METADATA_HDR10 m_displayHDR10;
   };
 }

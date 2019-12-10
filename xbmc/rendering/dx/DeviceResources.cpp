@@ -1166,7 +1166,7 @@ void DX::DeviceResources::DetectDisplayHdrCapable(bool& hdr_capable, bool& hdr_e
         }
         if (hdr_capable)
         {
-          char cs_txt[64];
+          std::string txColorSpace;
           switch (outDesc1.ColorSpace)
           {
             case DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020:

@@ -632,7 +632,7 @@ void DX::DeviceResources::ResizeBuffers()
 
     if (swapChainDesc.Format == DXGI_FORMAT_R10G10B10A2_UNORM)
     {
-      Set10BitSwapchain(true);
+      m_Is10bSwapchain = true;
       CLog::LogF(LOGNOTICE, "10 bit swapchain is used.");
     }
     else

@@ -537,7 +537,7 @@ bool CProcessorHD::Render(CRect src, CRect dst, ID3D11Resource* target, CRenderB
         vp.lightMetadata = views[2]->lightMetadata;
         vp.hasLightMetadata = views[2]->hasLightMetadata;
 
-        // Passes Stream HDR Dynamic metadata to VideoProcessor
+        // Passes stream SEI HDR metadata to VideoProcessor (refresh changes during playback)
         DXGI_HDR_METADATA_HDR10 hdr10Stream = CRendererBase::GetDXGIHDR10MetaData(vp);
         videoCtx2->VideoProcessorSetStreamHDRMetaData(m_pVideoProcessor.Get(), DEFAULT_STREAM_INDEX,
                                                       DXGI_HDR_METADATA_TYPE_HDR10,

@@ -1153,7 +1153,7 @@ void DX::DeviceResources::DetectDisplayHdrCapable(bool& hdr_capable, bool& hdr_e
           hdr10.MaxContentLightLevel = static_cast<uint16_t>(outDesc1.MaxFullFrameLuminance);
           hdr10.MaxFrameAverageLightLevel = static_cast<uint16_t>(outDesc1.MaxFullFrameLuminance);
           //Saves Monitor parameters for use later
-          m_hdr10Output = hdr10;
+          m_displayHDR10 = hdr10;
         }
         else if (outDesc1.MaxLuminance >= 400.0)
         {
@@ -1176,10 +1176,10 @@ void DX::DeviceResources::DetectDisplayHdrCapable(bool& hdr_capable, bool& hdr_e
               txColorSpace = "DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709";
               break;
             default:
-              strcpy(cs_txt, "UNKNOWN");
+              txColorSpace = "UNKNOWN";
               break;
           }
-          CLog::LogF(LOGNOTICE, "Color Space = {0:s}", cs_txt);
+          CLog::LogF(LOGNOTICE, "Color Space = {0:s}", txColorSpace);
           CLog::LogF(LOGNOTICE, "RedPrimary = {0:0.3f}, {1:0.3f}", outDesc1.RedPrimary[0],
                      outDesc1.RedPrimary[1]);
           CLog::LogF(LOGNOTICE, "GreenPrimary = {0:0.3f}, {1:0.3f}", outDesc1.GreenPrimary[0],

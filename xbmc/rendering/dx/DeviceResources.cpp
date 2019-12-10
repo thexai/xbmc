@@ -1173,7 +1173,7 @@ void DX::DeviceResources::DetectDisplayHdrCapable(bool& hdr_capable, bool& hdr_e
               txColorSpace = "DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020";
               break;
             case DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709:
-              strcpy(cs_txt, "DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709");
+              txColorSpace = "DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709";
               break;
             default:
               strcpy(cs_txt, "UNKNOWN");

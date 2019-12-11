@@ -85,7 +85,7 @@ namespace DX
     void SetHdrMetaData(DXGI_HDR_METADATA_HDR10& hdr10) const;
     void ClearHdrMetaData() const;
     bool Is10BitSwapchain() const { return m_Is10bSwapchain; }
-    DXGI_HDR_METADATA_HDR10 GetHdr10Output() const { return m_displayHDR10; }
+    DXGI_HDR_METADATA_HDR10 GetHdr10Display() const { return m_displayHDR10; }
 
     // DX resources registration
     void Register(ID3DResource *resource);

@@ -169,7 +169,11 @@ bool CRendererBase::Configure(const VideoPicture& picture, float fps, unsigned o
   m_fps = fps;
   m_renderOrientation = orientation;
 
-  if (picture.hasDisplayMetadata || picture.color_primaries == AVCOL_PRI_BT2020)
+  if (!DX::DeviceResources::Get()->Is10BitSwapchain())
+    return true;
+
+  if (picture.hasDisplayMetadata && picture.hasLightMetadata &&
+      picture.color_primaries == AVCOL_PRI_BT2020)
   {
     bool hdr_capable, hdr_enabled;
 
@@ -182,8 +186,7 @@ bool CRendererBase::Configure(const VideoPicture& picture, float fps, unsigned o
   }
   else
   {
-    if (DX::DeviceResources::Get()->Is10BitSwapchain())
-      DX::DeviceResources::Get()->ClearHdrMetaData();
+    DX::DeviceResources::Get()->ClearHdrMetaData();
   }
 
   return true;

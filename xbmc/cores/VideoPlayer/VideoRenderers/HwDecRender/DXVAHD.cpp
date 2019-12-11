@@ -507,8 +507,7 @@ bool CProcessorHD::Render(CRect src, CRect dst, ID3D11Resource* target, CRenderB
     const DXGI_COLOR_SPACE_TYPE source_color = GetDXGIColorSpace(views[2], m_bSupportHDR10);
     DXGI_COLOR_SPACE_TYPE target_color;
 
-    if (DX::DeviceResources::Get()->Is10BitSwapchain() &&
-        (views[2]->hasLightMetadata || views[2]->primaries == AVCOL_PRI_BT2020))
+    if (DX::DeviceResources::Get()->Is10BitSwapchain() && views[2]->primaries == AVCOL_PRI_BT2020)
     {
       target_color = DX::Windowing()->UseLimitedColor()
                          ? DXGI_COLOR_SPACE_RGB_STUDIO_G2084_NONE_P2020
@@ -530,7 +529,8 @@ bool CProcessorHD::Render(CRect src, CRect dst, ID3D11Resource* target, CRenderB
                             target_color == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020))
     {
       ComPtr<ID3D11VideoContext2> videoCtx2;
-      if (SUCCEEDED(m_pVideoContext.As(&videoCtx2)) && views[2]->hasDisplayMetadata)
+      if (SUCCEEDED(m_pVideoContext.As(&videoCtx2)) && views[2]->hasDisplayMetadata &&
+          views[2]->hasLightMetadata)
       {
         VideoPicture vp;
         vp.displayMetadata = views[2]->displayMetadata;

@@ -529,10 +529,9 @@ void DX::DeviceResources::ResizeBuffers()
       windowed = false;
     }
 
-    bool hdr_capable;
     // check if swapchain needs to be recreated
     m_swapChain->GetDesc1(&scDesc);
-    DetectDisplayHdrCapable(hdr_capable, isHdrEnabled);
+    isHdrEnabled = IsDisplayHDREnabled(nullptr);
 
     if ((scDesc.Stereo == TRUE) != bHWStereoEnabled ||
         (!m_Is10bSwapchain && isHdrEnabled))
@@ -1115,16 +1114,17 @@ void DX::DeviceResources::Trim() const
 
 #endif
 
-void DX::DeviceResources::DetectDisplayHdrCapable(bool& hdr_capable, bool& hdr_enabled)
+bool DX::DeviceResources::IsDisplayHDREnabled(bool* HDRCapable)
 {
   ComPtr<IDXGIOutput> pOutput;
   ComPtr<IDXGIOutput6> pOutput6;
+  DXGI_HDR_METADATA_HDR10 hdr10 = {};
   DXGI_OUTPUT_DESC1 od;
-  hdr_capable = false;
-  hdr_enabled = false;
+  bool hdrCapable = false;
+  bool hdrEnabled = false;
 
   if (m_swapChain == nullptr)
-    return;
+    return false;
 
   if (SUCCEEDED(m_swapChain->GetContainingOutput(pOutput.GetAddressOf())))
   {
@@ -1135,11 +1135,10 @@ void DX::DeviceResources::DetectDisplayHdrCapable(bool& hdr_capable, bool& hdr_e
         if (od.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
         {
           CLog::LogF(LOGNOTICE, "Monitor HDR capable detected and HDR current state is ENABLED:");
-          hdr_enabled = true;
-          hdr_capable = true;
+          hdrEnabled = true;
+          hdrCapable = true;
           constexpr double FACTOR_1 = 50000.0;
           constexpr double FACTOR_2 = 10000.0;
-          DXGI_HDR_METADATA_HDR10 hdr10 = {};
           hdr10.RedPrimary[0] = static_cast<uint16_t>(FACTOR_1 * od.RedPrimary[0]);
           hdr10.RedPrimary[1] = static_cast<uint16_t>(FACTOR_1 * od.RedPrimary[1]);
           hdr10.GreenPrimary[0] = static_cast<uint16_t>(FACTOR_1 * od.GreenPrimary[0]);
@@ -1152,19 +1151,17 @@ void DX::DeviceResources::DetectDisplayHdrCapable(bool& hdr_capable, bool& hdr_e
           hdr10.MinMasteringLuminance = static_cast<uint32_t>(FACTOR_2 * od.MinLuminance);
           hdr10.MaxContentLightLevel = static_cast<uint16_t>(od.MaxFullFrameLuminance);
           hdr10.MaxFrameAverageLightLevel = static_cast<uint16_t>(od.MaxFullFrameLuminance);
-          //Saves Monitor parameters for use later
-          m_displayHDR10 = hdr10;
         }
         else if (od.MaxLuminance >= 400.0)
         {
           CLog::LogF(LOGNOTICE, "Monitor HDR capable is detected but NOT enabled:");
-          hdr_capable = true;
+          hdrCapable = true;
         }
         else
         {
           CLog::LogF(LOGNOTICE, "No monitor HDR capable detected.");
         }
-        if (hdr_capable)
+        if (hdrCapable)
         {
           std::string txColorSpace = "UNKNOWN";
           switch (od.ColorSpace)
@@ -1192,6 +1189,13 @@ void DX::DeviceResources::DetectDisplayHdrCapable(bool& hdr_capable, bool& hdr_e
       }
     }
   }
+  //Saves Monitor parameters for use later
+  m_displayHDR10 = hdr10;
+  if (HDRCapable != nullptr)
+  {
+    *HDRCapable = hdrCapable;
+  }
+  return hdrEnabled;
 }
 
 void DX::DeviceResources::SetHdrMetaData(DXGI_HDR_METADATA_HDR10& hdr10) const
@@ -1216,7 +1220,7 @@ void DX::DeviceResources::SetHdrMetaData(DXGI_HDR_METADATA_HDR10& hdr10) const
       const double min_ML = static_cast<double>(hdr10.MinMasteringLuminance) / FACTOR_2;
 
       CLog::LogF(LOGNOTICE,
-                 "STREAM Static HDR Metadata => RP {0:0.3f} {1:0.3f} | GP {2:0.3f} {3:0.3f} | BP "
+                 "Stream HDR metadata => RP {0:0.3f} {1:0.3f} | GP {2:0.3f} {3:0.3f} | BP "
                  "{4:0.3f} {5:0.3f} | WP {6:0.3f} "
                  "{7:0.3f} | MAX ML {8:0.0f} "
                  "| min ML {9:0.3f} | Max CLL {10:d} | Max FALL {11:d}",

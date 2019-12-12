@@ -130,12 +130,12 @@ CRendererBase::CRendererBase(CVideoSettings& videoSettings)
 
 CRendererBase::~CRendererBase()
 {
-  bool hdr_capable, hdr_enabled;
-  DX::DeviceResources::Get()->DetectDisplayHdrCapable(hdr_capable, hdr_enabled);
-
-  if (hdr_enabled && DX::DeviceResources::Get()->Is10BitSwapchain())
+  if (DX::DeviceResources::Get()->Is10BitSwapchain())
   {
-    DX::DeviceResources::Get()->ClearHdrMetaData();
+    if (DX::DeviceResources::Get()->IsDisplayHDREnabled(nullptr))
+    {
+      DX::DeviceResources::Get()->ClearHdrMetaData();
+    }
   }
   Flush(false);
 }
@@ -175,11 +175,7 @@ bool CRendererBase::Configure(const VideoPicture& picture, float fps, unsigned o
   if (picture.hasDisplayMetadata && picture.hasLightMetadata &&
       picture.color_primaries == AVCOL_PRI_BT2020)
   {
-    bool hdr_capable, hdr_enabled;
-
-    DX::DeviceResources::Get()->DetectDisplayHdrCapable(hdr_capable, hdr_enabled);
-
-    if (hdr_enabled)
+    if (DX::DeviceResources::Get()->IsDisplayHDREnabled(nullptr))
     {
       DX::DeviceResources::Get()->SetHdrMetaData(GetDXGIHDR10MetaData(picture));
     }

@@ -1174,10 +1174,14 @@ bool DX::DeviceResources::IsDisplayHDREnabled(bool* HDRCapable)
               break;
           }
           CLog::LogF(LOGNOTICE, "ColorSpace = {0:s}", txColorSpace);
-          CLog::LogF(LOGNOTICE, "RedPrimary = {0:0.3f}, {1:0.3f}", od.RedPrimary[0], od.RedPrimary[1]);
-          CLog::LogF(LOGNOTICE, "GreenPrimary = {0:0.3f}, {1:0.3f}", od.GreenPrimary[0], od.GreenPrimary[1]);
-          CLog::LogF(LOGNOTICE, "BluePrimary = {0:0.3f}, {1:0.3f}", od.BluePrimary[0],  od.BluePrimary[1]);
-          CLog::LogF(LOGNOTICE, "WhitePoint = {0:0.3f}, {1:0.3f}", od.WhitePoint[0], od.WhitePoint[1]);
+          CLog::LogF(LOGNOTICE, "RedPrimary = {0:0.3f}, {1:0.3f}", od.RedPrimary[0],
+                     od.RedPrimary[1]);
+          CLog::LogF(LOGNOTICE, "GreenPrimary = {0:0.3f}, {1:0.3f}", od.GreenPrimary[0],
+                     od.GreenPrimary[1]);
+          CLog::LogF(LOGNOTICE, "BluePrimary = {0:0.3f}, {1:0.3f}", od.BluePrimary[0],
+                     od.BluePrimary[1]);
+          CLog::LogF(LOGNOTICE, "WhitePoint = {0:0.3f}, {1:0.3f}", od.WhitePoint[0],
+                     od.WhitePoint[1]);
           CLog::LogF(LOGNOTICE, "MinLuminance = {0:0.4f}", od.MinLuminance);
           CLog::LogF(LOGNOTICE, "MaxLuminance = {0:0.0f}", od.MaxLuminance);
           CLog::LogF(LOGNOTICE, "MaxFullFrameLuminance = {0:0.0f}", od.MaxFullFrameLuminance);

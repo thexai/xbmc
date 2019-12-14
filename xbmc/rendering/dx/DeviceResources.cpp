@@ -533,8 +533,7 @@ void DX::DeviceResources::ResizeBuffers()
     m_swapChain->GetDesc1(&scDesc);
     isHdrEnabled = IsDisplayHDREnabled(nullptr);
 
-    if ((scDesc.Stereo == TRUE) != bHWStereoEnabled ||
-        (!m_Is10bSwapchain && isHdrEnabled))
+    if ((scDesc.Stereo == TRUE) != bHWStereoEnabled || (!m_Is10bSwapchain && isHdrEnabled))
     {
       // check fullscreen state and go to windowing if necessary
       if (!!bFullcreen)
@@ -1202,7 +1201,7 @@ bool DX::DeviceResources::IsDisplayHDREnabled(bool* HDRCapable)
   return hdrEnabled;
 }
 
-void DX::DeviceResources::SetHdrMetaData(DXGI_HDR_METADATA_HDR10& hdr10) const
+void DX::DeviceResources::SetHdrMetaData(DXGI_HDR_METADATA_HDR10& hdr10, bool setColorSpace) const
 {
   ComPtr<IDXGISwapChain4> swapChain4;
 
@@ -1236,17 +1235,20 @@ void DX::DeviceResources::SetHdrMetaData(DXGI_HDR_METADATA_HDR10& hdr10) const
       CLog::LogF(LOGERROR, "DXGI SetHDRMetaData failed");
     }
 
-    const DXGI_COLOR_SPACE_TYPE cs = DX::Windowing()->UseLimitedColor()
-                                         ? DXGI_COLOR_SPACE_RGB_STUDIO_G2084_NONE_P2020
-                                         : DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
+    if (setColorSpace)
+    {
+      const DXGI_COLOR_SPACE_TYPE cs = DX::Windowing()->UseLimitedColor()
+                                           ? DXGI_COLOR_SPACE_RGB_STUDIO_G2084_NONE_P2020
+                                           : DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
 
-    if (SUCCEEDED(swapChain4->SetColorSpace1(cs)))
-    {
-      CLog::LogF(LOGDEBUG, "DXGI SetColorSpace1 success");
-    }
-    else
-    {
-      CLog::LogF(LOGERROR, "DXGI SetColorSpace1 failed");
+      if (SUCCEEDED(swapChain4->SetColorSpace1(cs)))
+      {
+        CLog::LogF(LOGDEBUG, "DXGI SetColorSpace1 success");
+      }
+      else
+      {
+        CLog::LogF(LOGERROR, "DXGI SetColorSpace1 failed");
+      }
     }
   }
 }

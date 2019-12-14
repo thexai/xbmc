@@ -169,21 +169,9 @@ bool CRendererBase::Configure(const VideoPicture& picture, float fps, unsigned o
   m_fps = fps;
   m_renderOrientation = orientation;
 
-  if (!DX::DeviceResources::Get()->Is10BitSwapchain())
-    return true;
-
-  if (picture.hasDisplayMetadata && picture.hasLightMetadata &&
-      picture.color_primaries == AVCOL_PRI_BT2020)
-  {
-    if (DX::DeviceResources::Get()->IsDisplayHDREnabled(nullptr))
-    {
-      DX::DeviceResources::Get()->SetHdrMetaData(GetDXGIHDR10MetaData(picture));
-    }
-  }
-  else
-  {
-    DX::DeviceResources::Get()->ClearHdrMetaData();
-  }
+  m_lastHdr10 = {};
+  m_isHdrEnabled = false;
+  m_iCntMetaData = 0;
 
   return true;
 }
@@ -216,6 +204,49 @@ void CRendererBase::Render(CD3DTexture& target, const CRect& sourceRect, const C
   {
     if (!buf->UploadBuffer())
       return;
+  }
+
+  if (DX::DeviceResources::Get()->Is10BitSwapchain())
+  {
+    if (IsStreamHDR10(buf))
+    {
+      DXGI_HDR_METADATA_HDR10 hdr10 = GetDXGIHDR10MetaData(buf);
+      if (m_isHdrEnabled)
+      {
+        // Only Sets HDR10 metadata if differs from previous
+        if (!CompareDXGIHDR10MetaData(hdr10, m_lastHdr10))
+        {
+          // Sets HDR10 metadata only
+          DX::DeviceResources::Get()->SetHdrMetaData(hdr10, false);
+          m_lastHdr10 = hdr10;
+        }
+      }
+      else
+      {
+        // Sets HDR10 metadata and enables HDR10 color space (switch to HDR rendering)
+        if (DX::DeviceResources::Get()->IsDisplayHDREnabled(nullptr))
+        {
+          DX::DeviceResources::Get()->SetHdrMetaData(hdr10, true);
+          m_isHdrEnabled = true;
+          m_lastHdr10 = hdr10;
+        }
+      }
+      m_iCntMetaData = 0;
+    }
+    else
+    {
+      if (m_isHdrEnabled)
+      {
+        m_iCntMetaData++;
+        if (m_iCntMetaData > 60)
+        {
+          // If more than 60 frames are received without HDR10 metadata switch to SDR rendering
+          DX::DeviceResources::Get()->ClearHdrMetaData();
+          m_isHdrEnabled = false;
+          m_iCntMetaData = 0;
+        }
+      }
+    }
   }
 
   if (m_viewWidth != static_cast<unsigned>(viewRect.Width()) ||
@@ -468,41 +499,58 @@ AVPixelFormat CRendererBase::GetAVFormat(DXGI_FORMAT dxgi_format)
   }
 }
 
-DXGI_HDR_METADATA_HDR10 CRendererBase::GetDXGIHDR10MetaData(const VideoPicture& vp)
+DXGI_HDR_METADATA_HDR10 CRendererBase::GetDXGIHDR10MetaData(CRenderBuffer* rb)
 {
   constexpr double FACTOR_1 = 50000.0;
   constexpr double FACTOR_2 = 10000.0;
   DXGI_HDR_METADATA_HDR10 hdr10 = {};
-  if (vp.displayMetadata.has_primaries)
+  if (rb->displayMetadata.has_primaries)
   {
     hdr10.RedPrimary[0] =
-        static_cast<uint16_t>(FACTOR_1 * av_q2d(vp.displayMetadata.display_primaries[0][0]));
+        static_cast<uint16_t>(FACTOR_1 * av_q2d(rb->displayMetadata.display_primaries[0][0]));
     hdr10.RedPrimary[1] =
-        static_cast<uint16_t>(FACTOR_1 * av_q2d(vp.displayMetadata.display_primaries[0][1]));
+        static_cast<uint16_t>(FACTOR_1 * av_q2d(rb->displayMetadata.display_primaries[0][1]));
     hdr10.GreenPrimary[0] =
-        static_cast<uint16_t>(FACTOR_1 * av_q2d(vp.displayMetadata.display_primaries[1][0]));
+        static_cast<uint16_t>(FACTOR_1 * av_q2d(rb->displayMetadata.display_primaries[1][0]));
     hdr10.GreenPrimary[1] =
-        static_cast<uint16_t>(FACTOR_1 * av_q2d(vp.displayMetadata.display_primaries[1][1]));
+        static_cast<uint16_t>(FACTOR_1 * av_q2d(rb->displayMetadata.display_primaries[1][1]));
     hdr10.BluePrimary[0] =
-        static_cast<uint16_t>(FACTOR_1 * av_q2d(vp.displayMetadata.display_primaries[2][0]));
+        static_cast<uint16_t>(FACTOR_1 * av_q2d(rb->displayMetadata.display_primaries[2][0]));
     hdr10.BluePrimary[1] =
-        static_cast<uint16_t>(FACTOR_1 * av_q2d(vp.displayMetadata.display_primaries[2][1]));
+        static_cast<uint16_t>(FACTOR_1 * av_q2d(rb->displayMetadata.display_primaries[2][1]));
     hdr10.WhitePoint[0] =
-        static_cast<uint16_t>(FACTOR_1 * av_q2d(vp.displayMetadata.white_point[0]));
+        static_cast<uint16_t>(FACTOR_1 * av_q2d(rb->displayMetadata.white_point[0]));
     hdr10.WhitePoint[1] =
-        static_cast<uint16_t>(FACTOR_1 * av_q2d(vp.displayMetadata.white_point[1]));
+        static_cast<uint16_t>(FACTOR_1 * av_q2d(rb->displayMetadata.white_point[1]));
   }
-  if (vp.displayMetadata.has_luminance)
+  if (rb->displayMetadata.has_luminance)
   {
     hdr10.MaxMasteringLuminance =
-        static_cast<uint32_t>(FACTOR_2 * av_q2d(vp.displayMetadata.max_luminance));
+        static_cast<uint32_t>(FACTOR_2 * av_q2d(rb->displayMetadata.max_luminance));
     hdr10.MinMasteringLuminance =
-        static_cast<uint32_t>(FACTOR_2 * av_q2d(vp.displayMetadata.min_luminance));
+        static_cast<uint32_t>(FACTOR_2 * av_q2d(rb->displayMetadata.min_luminance));
   }
-  if (vp.hasLightMetadata)
+  if (rb->hasLightMetadata)
   {
-    hdr10.MaxContentLightLevel = static_cast<uint16_t>(vp.lightMetadata.MaxCLL);
-    hdr10.MaxFrameAverageLightLevel = static_cast<uint16_t>(vp.lightMetadata.MaxFALL);
+    hdr10.MaxContentLightLevel = static_cast<uint16_t>(rb->lightMetadata.MaxCLL);
+    hdr10.MaxFrameAverageLightLevel = static_cast<uint16_t>(rb->lightMetadata.MaxFALL);
   }
   return hdr10;
+}
+
+bool CRendererBase::IsStreamHDR10(CRenderBuffer* rb)
+{
+  if ((rb->hasDisplayMetadata || rb->hasLightMetadata || rb->color_space == AVCOL_SPC_BT2020_NCL) &&
+      rb->primaries == AVCOL_PRI_BT2020)
+    return true;
+
+  return false;
+}
+
+bool CRendererBase::CompareDXGIHDR10MetaData(const DXGI_HDR_METADATA_HDR10& hdr10a, const DXGI_HDR_METADATA_HDR10& hdr10b)
+{
+  if (0 == std::memcmp(&hdr10a, &hdr10b, static_cast<size_t>(sizeof(hdr10a))))
+    return true;
+
+  return false;
 }

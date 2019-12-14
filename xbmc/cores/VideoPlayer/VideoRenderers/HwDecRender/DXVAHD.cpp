@@ -528,26 +528,23 @@ bool CProcessorHD::Render(CRect src, CRect dst, ID3D11Resource* target, CRenderB
     if (m_bSupportHDR10 && (target_color == DXGI_COLOR_SPACE_RGB_STUDIO_G2084_NONE_P2020 ||
                             target_color == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020))
     {
-      ComPtr<ID3D11VideoContext2> videoCtx2;
-      if (SUCCEEDED(m_pVideoContext.As(&videoCtx2)) && views[2]->hasDisplayMetadata &&
-          views[2]->hasLightMetadata)
+      if (CRendererBase::IsStreamHDR10(views[2]))
       {
-        VideoPicture vp;
-        vp.displayMetadata = views[2]->displayMetadata;
-        vp.lightMetadata = views[2]->lightMetadata;
-        vp.hasLightMetadata = views[2]->hasLightMetadata;
+        ComPtr<ID3D11VideoContext2> videoCtx2;
+        if (SUCCEEDED(m_pVideoContext.As(&videoCtx2)))
+        {
+          // Passes stream SEI HDR metadata to VideoProcessor (refresh changes during playback)
+          DXGI_HDR_METADATA_HDR10 hdr10Stream = CRendererBase::GetDXGIHDR10MetaData(views[2]);
+          videoCtx2->VideoProcessorSetStreamHDRMetaData(
+              m_pVideoProcessor.Get(), DEFAULT_STREAM_INDEX, DXGI_HDR_METADATA_TYPE_HDR10,
+              sizeof(hdr10Stream), &hdr10Stream);
 
-        // Passes stream SEI HDR metadata to VideoProcessor (refresh changes during playback)
-        DXGI_HDR_METADATA_HDR10 hdr10Stream = CRendererBase::GetDXGIHDR10MetaData(vp);
-        videoCtx2->VideoProcessorSetStreamHDRMetaData(m_pVideoProcessor.Get(), DEFAULT_STREAM_INDEX,
-                                                      DXGI_HDR_METADATA_TYPE_HDR10,
-                                                      sizeof(hdr10Stream), &hdr10Stream);
-
-        // Passes Display HDR parameters (EDID) to VideoProcessor
-        DXGI_HDR_METADATA_HDR10 hdr10Display = DX::DeviceResources::Get()->GetHdr10Display();
-        videoCtx2->VideoProcessorSetOutputHDRMetaData(m_pVideoProcessor.Get(),
-                                                      DXGI_HDR_METADATA_TYPE_HDR10,
-                                                      sizeof(hdr10Display), &hdr10Display);
+          // Passes Display HDR parameters (EDID) to VideoProcessor
+          DXGI_HDR_METADATA_HDR10 hdr10Display = DX::DeviceResources::Get()->GetHdr10Display();
+          videoCtx2->VideoProcessorSetOutputHDRMetaData(m_pVideoProcessor.Get(),
+                                                        DXGI_HDR_METADATA_TYPE_HDR10,
+                                                        sizeof(hdr10Display), &hdr10Display);
+        }
       }
     }
   }

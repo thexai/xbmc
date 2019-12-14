@@ -82,7 +82,7 @@ namespace DX
     bool SetFullScreen(bool fullscreen, RESOLUTION_INFO& res);
 
     bool IsDisplayHDREnabled(bool* HDRCapable);
-    void SetHdrMetaData(DXGI_HDR_METADATA_HDR10& hdr10) const;
+    void SetHdrMetaData(DXGI_HDR_METADATA_HDR10& hdr10, bool setColorSpace) const;
     void ClearHdrMetaData() const;
     bool Is10BitSwapchain() const { return m_Is10bSwapchain; }
     DXGI_HDR_METADATA_HDR10 GetHdr10Display() const { return m_displayHDR10; }

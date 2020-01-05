@@ -69,7 +69,7 @@ public:
   // HDR OS/display override
   bool SetHDR(const VideoPicture* videoPicture) override;
   bool IsHDRDisplay() override;
-  int GetOSHDRStatus() override;
+  bool GetOSHDRStatus() override;
 
   // HDR support
   bool IsHDROutput() const;

@@ -144,6 +144,9 @@ bool CProcessorHD::InitProcessor()
   if (0 != (m_vcaps.FeatureCaps & D3D11_VIDEO_PROCESSOR_FEATURE_CAPS_LEGACY))
     CLog::LogF(LOGWARNING, "the video driver does not support full video processing capabilities.");
 
+  if (!DX::Windowing()->IsHDROutput())
+    m_bSupportHDR10 = false;
+
   m_max_back_refs = 0;
   m_max_fwd_refs = 0;
   m_procIndex = 0;
@@ -529,7 +532,7 @@ bool CProcessorHD::Render(CRect src, CRect dst, ID3D11Resource* target, CRenderB
     // makes target available for processing in shaders
     videoCtx1->VideoProcessorSetOutputShaderUsage(m_pVideoProcessor.Get(), 1);
 
-	// only used for DXVA HW tone mapping HDR to SDR
+    // only used for DXVA HW tone mapping HDR to SDR
     if (!DX::Windowing()->IsHDROutput() && m_bSupportHDR10 &&
         views[2]->color_transfer == AVCOL_TRC_SMPTE2084 && views[2]->primaries == AVCOL_PRI_BT2020)
     {

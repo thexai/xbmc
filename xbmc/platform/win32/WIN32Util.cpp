@@ -1305,79 +1305,55 @@ bool CWIN32Util::ToggleWindowsHDR()
 
 int CWIN32Util::GetWindowsHDRStatus()
 {
-  uint32_t pathCount, modeCount;
-
-  uint8_t request[] = {0x09, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00, 0x7C, 0x6F, 0x00,
-                       0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x01, 0x00, 0x00, 0xDB, 0x00,
-                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00};
-
   int status = 0;
+  std::string deviceInfo {"Unknown"};
+  uint32_t pathCount = 0;
+  uint32_t modeCount = 0;
 
   if (ERROR_SUCCESS == GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount))
   {
-    DISPLAYCONFIG_PATH_INFO* pathsArray = nullptr;
-    DISPLAYCONFIG_MODE_INFO* modesArray = nullptr;
+    std::vector<DISPLAYCONFIG_PATH_INFO> paths(pathCount);
+    std::vector<DISPLAYCONFIG_MODE_INFO> modes(modeCount);
 
-    const size_t sizePathsArray = pathCount * sizeof(DISPLAYCONFIG_PATH_INFO);
-    const size_t sizeModesArray = modeCount * sizeof(DISPLAYCONFIG_MODE_INFO);
-
-    pathsArray = static_cast<DISPLAYCONFIG_PATH_INFO*>(std::malloc(sizePathsArray));
-    modesArray = static_cast<DISPLAYCONFIG_MODE_INFO*>(std::malloc(sizeModesArray));
-
-    if (pathsArray != nullptr && modesArray != nullptr)
+    if (ERROR_SUCCESS == QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, &pathCount, paths.data(),
+                                            &modeCount, modes.data(), nullptr))
     {
-      std::memset(pathsArray, 0, sizePathsArray);
-      std::memset(modesArray, 0, sizeModesArray);
+      DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO request = { };
+      request.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO;
+      request.header.size = sizeof(request);
 
-      if (ERROR_SUCCESS == QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, &pathCount, pathsArray,
-                                              &modeCount, modesArray, 0))
+      for (const auto& mode : modes)
       {
-        DISPLAYCONFIG_DEVICE_INFO_HEADER* requestPacket =
-            reinterpret_cast<DISPLAYCONFIG_DEVICE_INFO_HEADER*>(request);
-
-        for (int i = 0; i < modeCount; i++)
+        if (mode.infoType == DISPLAYCONFIG_MODE_INFO_TYPE_TARGET)
         {
-          if (modesArray[i].infoType == DISPLAYCONFIG_MODE_INFO_TYPE_TARGET)
-          {
-            requestPacket->adapterId.HighPart = modesArray[i].adapterId.HighPart;
-            requestPacket->adapterId.LowPart = modesArray[i].adapterId.LowPart;
-            requestPacket->id = modesArray[i].id;
-          }
-        }
-
-        if (ERROR_SUCCESS == DisplayConfigGetDeviceInfo(requestPacket))
-        {
-          std::string txDeviceInfo;
-          switch (request[20])
-          {
-            case 0xD0: // display is not HDR capable
-              status = 0;
-              txDeviceInfo = "No HDR capable";
-              break;
-            case 0xD1: // capable and HDR is OFF
-              status = 1;
-              txDeviceInfo = "HDR capable and OFF";
-              break;
-            case 0xD3: // capable and HDR is ON
-              status = 2;
-              txDeviceInfo = "HDR capable and ON";
-              break;
-            default:
-              status = 0;
-              txDeviceInfo = "UNKNOWN";
-              break;
-          }
-          if (CServiceBroker::IsServiceManagerUp())
-            CLog::LogF(LOGDEBUG,
-                       "DisplayConfigGetDeviceInfo returned value 0x{0:2X} \"{1:s}\"  (return "
-                       "status = {2:d})",
-                       request[20], txDeviceInfo, status);
+          request.header.adapterId.HighPart = mode.adapterId.HighPart;
+          request.header.adapterId.LowPart = mode.adapterId.LowPart;
+          request.header.id = mode.id;
+          break;
         }
       }
-      std::free(pathsArray);
-      std::free(modesArray);
+
+      if (ERROR_SUCCESS == DisplayConfigGetDeviceInfo(&request.header))
+      {
+        if (request.advancedColorSupported && request.advancedColorEnabled)
+        {
+          status = 2;
+          deviceInfo = "Display HDR capable and HDR support is enabled";
+        }
+        else if (request.advancedColorSupported && request.advancedColorForceDisabled)
+        {
+          status = 1;
+          deviceInfo = "Display HDR capable and HDR support is disabled";
+        }
+        else
+        {
+          status = 0;
+          deviceInfo = "Display not HDR capable";
+        }
+      }
     }
   }
 
+  CLog::Log(LOGDEBUG, "WIN32Util: GetWindowsHDRStatus: %d (%s)", status, deviceInfo);
   return status;
 }

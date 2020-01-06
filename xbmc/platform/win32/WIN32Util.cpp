@@ -1230,76 +1230,59 @@ bool CWIN32Util::SetThreadLocalLocale(bool enable /* = true */)
 
 bool CWIN32Util::ToggleWindowsHDR()
 {
-  uint32_t pathCount, modeCount;
+  uint32_t pathCount = 0;
+  uint32_t modeCount = 0;
   bool success = false;
-
-  uint8_t set[] = {0x0A, 0x00, 0x00, 0x00, 0x18, 0x00, 0x00, 0x00, 0x14, 0x81, 0x00, 0x00,
-                   0x00, 0x00, 0x00, 0x00, 0x04, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00};
-
-  uint8_t request[] = {0x09, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00, 0x7C, 0x6F, 0x00,
-                       0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x01, 0x00, 0x00, 0xDB, 0x00,
-                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00};
 
   if (ERROR_SUCCESS == GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount))
   {
-    DISPLAYCONFIG_PATH_INFO* pathsArray = nullptr;
-    DISPLAYCONFIG_MODE_INFO* modesArray = nullptr;
+    std::vector<DISPLAYCONFIG_PATH_INFO> paths(pathCount);
+    std::vector<DISPLAYCONFIG_MODE_INFO> modes(modeCount);
 
-    const size_t sizePathsArray = pathCount * sizeof(DISPLAYCONFIG_PATH_INFO);
-    const size_t sizeModesArray = modeCount * sizeof(DISPLAYCONFIG_MODE_INFO);
-
-    pathsArray = static_cast<DISPLAYCONFIG_PATH_INFO*>(std::malloc(sizePathsArray));
-    modesArray = static_cast<DISPLAYCONFIG_MODE_INFO*>(std::malloc(sizeModesArray));
-
-    if (pathsArray != nullptr && modesArray != nullptr)
+    if (ERROR_SUCCESS == QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, &pathCount, paths.data(),
+                                            &modeCount, modes.data(), nullptr))
     {
-      std::memset(pathsArray, 0, sizePathsArray);
-      std::memset(modesArray, 0, sizeModesArray);
+      DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO getColorInfo = { };
+      getColorInfo.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO;
+      getColorInfo.header.size = sizeof(getColorInfo);
 
-      if (ERROR_SUCCESS == QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, &pathCount, pathsArray,
-                                              &modeCount, modesArray, 0))
+      DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE setColorState = { };
+      setColorState.header.type = DISPLAYCONFIG_DEVICE_INFO_SET_ADVANCED_COLOR_STATE;
+      setColorState.header.size = sizeof(setColorState);
+
+      for (const auto& mode : modes)
       {
-        DISPLAYCONFIG_DEVICE_INFO_HEADER* setPacket =
-            reinterpret_cast<DISPLAYCONFIG_DEVICE_INFO_HEADER*>(set);
-        DISPLAYCONFIG_DEVICE_INFO_HEADER* requestPacket =
-            reinterpret_cast<DISPLAYCONFIG_DEVICE_INFO_HEADER*>(request);
-
-        for (int i = 0; i < modeCount; i++)
+        if (mode.infoType == DISPLAYCONFIG_MODE_INFO_TYPE_TARGET)
         {
-          if (modesArray[i].infoType == DISPLAYCONFIG_MODE_INFO_TYPE_TARGET)
-          {
-            setPacket->adapterId.HighPart = modesArray[i].adapterId.HighPart;
-            setPacket->adapterId.LowPart = modesArray[i].adapterId.LowPart;
-            setPacket->id = modesArray[i].id;
+          setColorState.header.adapterId.HighPart = mode.adapterId.HighPart;
+          setColorState.header.adapterId.LowPart = mode.adapterId.LowPart;
+          setColorState.header.id = mode.id;
 
-            requestPacket->adapterId.HighPart = modesArray[i].adapterId.HighPart;
-            requestPacket->adapterId.LowPart = modesArray[i].adapterId.LowPart;
-            requestPacket->id = modesArray[i].id;
-          }
-        }
-
-        if (ERROR_SUCCESS == DisplayConfigGetDeviceInfo(requestPacket))
-        {
-          if (request[20] == 0xD1) // HDR is OFF
-          {
-            set[20] = 1;
-            CLog::LogF(LOGNOTICE, "Toggle Windows HDR On (OFF => ON).");
-            DisplayConfigSetDeviceInfo(setPacket);
-            success = true;
-          }
-          else if (request[20] == 0xD3) // HDR is ON
-          {
-            set[20] = 0;
-            CLog::LogF(LOGNOTICE, "Toggle Windows HDR Off (ON => OFF).");
-            DisplayConfigSetDeviceInfo(setPacket);
-            success = true;
-          }
+          getColorInfo.header.adapterId.HighPart = mode.adapterId.HighPart;
+          getColorInfo.header.adapterId.LowPart = mode.adapterId.LowPart;
+          getColorInfo.header.id = mode.id;
+          break;
         }
       }
-      std::free(pathsArray);
-      std::free(modesArray);
+
+      if (ERROR_SUCCESS == DisplayConfigGetDeviceInfo(&getColorInfo.header))
+      {
+        if (getColorInfo.advancedColorSupported && getColorInfo.advancedColorForceDisabled) // HDR is OFF
+        {
+          setColorState.enableAdvancedColor = TRUE;
+          CLog::LogF(LOGNOTICE, "Toggle Windows HDR On (OFF => ON).");
+          success = (ERROR_SUCCESS == DisplayConfigSetDeviceInfo(&setColorState.header));
+        }
+        else if (getColorInfo.advancedColorSupported && getColorInfo.advancedColorEnabled) // HDR is ON
+        {
+          setColorState.enableAdvancedColor = FALSE;
+          CLog::LogF(LOGNOTICE, "Toggle Windows HDR Off (ON => OFF).");
+          success = (ERROR_SUCCESS == DisplayConfigSetDeviceInfo(&setColorState.header));
+        }
+      }
     }
   }
+
   return success;
 }
 

@@ -225,7 +225,7 @@ void CRendererBase::Render(CD3DTexture& target, const CRect& sourceRect, const C
       else
       {
         // Sets HDR10 metadata and enables HDR10 color space (switch to HDR rendering)
-        DX::DeviceResources::Get()->SetHdrMetaData(hdr10);
+        DX::Windowing()->SetHdrMetaData(hdr10);
         CLog::LogF(LOGNOTICE, "Switching to HDR rendering");
         DX::Windowing()->SetHdrColorSpace(DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020);
         m_isHdrEnabled = true;

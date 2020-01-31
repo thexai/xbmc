@@ -676,7 +676,9 @@ void DX::DeviceResources::ResizeBuffers()
     // ensures that the application will only render after each VSync, minimizing power consumption.
     ComPtr<IDXGIDevice1> dxgiDevice;
     hr = m_d3dDevice.As(&dxgiDevice); CHECK_ERR();
-    dxgiDevice->SetMaximumFrameLatency(1);
+    // one frame queue is not sufficient for stability when rendering HDR and probably is
+    // causing other minor glitch. Changed to 8 (other intermediate values can also be good)
+    dxgiDevice->SetMaximumFrameLatency(8);
   }
 
   CLog::LogF(LOGDEBUG, "end resize buffers.");

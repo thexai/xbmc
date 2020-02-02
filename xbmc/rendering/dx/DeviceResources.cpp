@@ -618,12 +618,13 @@ void DX::DeviceResources::ResizeBuffers()
          isHdrEnabled))
     {
       swapChainDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
-      swapChainDesc.BufferCount = 2;
+      swapChainDesc.BufferCount = 6; // HDR 60 fps needs 6 buffers to avoid frame drops
       hr = CreateSwapChain(swapChainDesc, scFSDesc, &swapChain);
       if (FAILED(hr))
       {
         CLog::LogF(LOGWARNING, "creating 10bit swapchain failed, fallback to 8bit.");
         swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        swapChainDesc.BufferCount = 3 * (1 + bHWStereoEnabled);
       }
     }
 
@@ -682,13 +683,7 @@ void DX::DeviceResources::ResizeBuffers()
     // ensures that the application will only render after each VSync, minimizing power consumption.
     ComPtr<IDXGIDevice1> dxgiDevice;
     hr = m_d3dDevice.As(&dxgiDevice); CHECK_ERR();
-    DXGI_ADAPTER_DESC ad = {};
-    GetAdapterDesc(&ad);
-    //one frame queue is not sufficient for stability with NVIDIA (recent drivers)
-    if (ad.VendorId == 0x10DE)
-      dxgiDevice->SetMaximumFrameLatency(3);
-    else
-      dxgiDevice->SetMaximumFrameLatency(1);
+    dxgiDevice->SetMaximumFrameLatency(1);
   }
 
   CLog::LogF(LOGDEBUG, "end resize buffers.");
@@ -1082,6 +1077,12 @@ bool DX::DeviceResources::DoesTextureSharingWork()
 {
   if (m_d3dFeatureLevel < D3D_FEATURE_LEVEL_10_0 ||
     CSysInfo::GetWindowsDeviceFamily() != CSysInfo::Desktop)
+    return false;
+
+  DXGI_ADAPTER_DESC ad = {};
+  GetAdapterDesc(&ad);
+
+  if (m_d3dFeatureLevel >= D3D_FEATURE_LEVEL_12_0 && ad.VendorId == 0x10DE)
     return false;
 
   if (!CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_allowUseSeparateDeviceForDecoding)

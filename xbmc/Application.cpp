@@ -489,12 +489,12 @@ bool CApplication::Create(const CAppParamParser &params)
   CLog::Log(LOGNOTICE, "%s", CWIN32Util::GetResInfoString().c_str());
   CLog::Log(LOGNOTICE, "Running with %s rights", (CWIN32Util::IsCurrentUserLocalAdministrator() == TRUE) ? "administrator" : "restricted");
   CLog::Log(LOGNOTICE, "Aero is %s", (g_sysinfo.IsAeroDisabled() == true) ? "disabled" : "enabled");
-  int hDR = CWIN32Util::GetWindowsHDRStatus();
-  if (hDR > 0)
-    CLog::Log(LOGNOTICE, "HDR Display capable is detected and Windows HDR switch is %s",
-              (hDR == 2) ? "ON" : "OFF");
+  CWIN32Util::HDR_STATUS hdrStatus = CWIN32Util::GetWindowsHDRStatus();
+  if (hdrStatus == CWIN32Util::HDR_STATUS::HDR_UNSUPPORTED)
+    CLog::Log(LOGNOTICE, "Display is not HDR capable or cannot be detected");
   else
-    CLog::Log(LOGNOTICE, "Display is not HDR capable");
+    CLog::Log(LOGNOTICE, "Display HDR capable is detected and Windows HDR switch is %s",
+              (hdrStatus == CWIN32Util::HDR_STATUS::HDR_ON) ? "ON" : "OFF");
 #endif
 #if defined(TARGET_ANDROID)
   CLog::Log(LOGNOTICE,
@@ -1627,6 +1627,12 @@ bool CApplication::OnAction(const CAction &action)
   if (action.GetID() == ACTION_TAKE_SCREENSHOT)
   {
     CScreenShot::TakeScreenshot();
+    return true;
+  }
+  // Display HDR : toggle HDR on/off
+  if (action.GetID() == ACTION_HDR_TOGGLE)
+  {
+    CServiceBroker::GetWinSystem()->SetHDR(nullptr);
     return true;
   }
   // built in functions : execute the built-in

@@ -528,21 +528,6 @@ bool CProcessorHD::Render(CRect src, CRect dst, ID3D11Resource* target, CRenderB
     videoCtx1->VideoProcessorSetOutputColorSpace1(m_pVideoProcessor.Get(), target_color);
     // makes target available for processing in shaders
     videoCtx1->VideoProcessorSetOutputShaderUsage(m_pVideoProcessor.Get(), 1);
-
-    // only used for DXVA HW tone mapping HDR to SDR
-    if (!DX::Windowing()->IsHDROutput() && m_bSupportHDR10 &&
-        views[2]->color_transfer == AVCOL_TRC_SMPTE2084 && views[2]->primaries == AVCOL_PRI_BT2020)
-    {
-      ComPtr<ID3D11VideoContext2> videoCtx2;
-      if (SUCCEEDED(m_pVideoContext.As(&videoCtx2)))
-      {
-        // Passes stream SEI HDR metadata to VideoProcessor (refresh changes during playback)
-        DXGI_HDR_METADATA_HDR10 hdr10 = CRendererBase::GetDXGIHDR10MetaData(views[2]);
-        videoCtx2->VideoProcessorSetStreamHDRMetaData(m_pVideoProcessor.Get(), DEFAULT_STREAM_INDEX,
-                                                      DXGI_HDR_METADATA_TYPE_HDR10, sizeof(hdr10),
-                                                      &hdr10);
-      }
-    }
   }
   else
   {

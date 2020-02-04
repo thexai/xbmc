@@ -112,6 +112,15 @@ void DX::DeviceResources::Release()
     m_d3dDebug = nullptr;
   }
 #endif
+
+  // Restores Windows HDR initial config
+  CWIN32Util::HDR_STATUS hdrStatus = CWIN32Util::GetWindowsHDRStatus();
+
+  if ((hdrStatus != CWIN32Util::HDR_STATUS::HDR_UNSUPPORTED && m_HDRWindows != hdrStatus))
+  {
+    if (CWIN32Util::ToggleWindowsHDR())
+      Sleep(2000);
+  }
 }
 
 void DX::DeviceResources::GetOutput(IDXGIOutput** ppOutput) const
@@ -289,19 +298,22 @@ bool DX::DeviceResources::SetFullScreen(bool fullscreen, RESOLUTION_INFO& res)
 void DX::DeviceResources::CreateDeviceIndependentResources()
 {
   // Configures Windows HDR according GUI Settings / Player / Use HDR display capabilities
+  CWIN32Util::HDR_STATUS hdrStatus = CWIN32Util::GetWindowsHDRStatus();
+  m_HDRWindows = hdrStatus; // Saves current Windows HDR status
+
   if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
           Windowing()->SETTING_WINSYSTEM_IS_HDR_DISPLAY) &&
-      CWIN32Util::GetWindowsHDRStatus() == 1)
+      hdrStatus == CWIN32Util::HDR_STATUS::HDR_OFF)
   {
-    CWIN32Util::ToggleWindowsHDR(); // Toggle Windows HDR on
-    Sleep(2000);
+    if (CWIN32Util::ToggleWindowsHDR()) // Toggle Windows HDR on
+      Sleep(2000);
   }
   else if (!CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
                Windowing()->SETTING_WINSYSTEM_IS_HDR_DISPLAY) &&
-           CWIN32Util::GetWindowsHDRStatus() == 2)
+           hdrStatus == CWIN32Util::HDR_STATUS::HDR_ON)
   {
-    CWIN32Util::ToggleWindowsHDR(); // Toggle Windows HDR off
-    Sleep(2000);
+    if (CWIN32Util::ToggleWindowsHDR()) // Toggle Windows HDR off
+      Sleep(2000);
   }
 }
 

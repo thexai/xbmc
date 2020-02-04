@@ -17,6 +17,7 @@
 
 #include "DirectXHelper.h"
 #include "guilib/D3DResource.h"
+#include "platform/win32/WIN32Util.h"
 
 struct RESOLUTION_INFO;
 
@@ -160,8 +161,11 @@ namespace DX
     Concurrency::critical_section m_criticalSection;
     Concurrency::critical_section m_resourceSection;
     std::vector<ID3DResource*> m_resources;
+
     bool m_stereoEnabled;
     bool m_bDeviceCreated;
     bool m_IsHDROutput;
+
+    CWIN32Util::HDR_STATUS m_HDRWindows;
   };
 }

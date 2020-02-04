@@ -65,6 +65,12 @@ public:
   static bool SetThreadLocalLocale(bool enable = true);
 
   // HDR display support
+  enum class HDR_STATUS : uint32_t
+  {
+    HDR_UNSUPPORTED = 0,
+    HDR_OFF         = 1,
+    HDR_ON          = 2
+  };
   static bool ToggleWindowsHDR();
-  static int GetWindowsHDRStatus();
+  static HDR_STATUS GetWindowsHDRStatus();
 };

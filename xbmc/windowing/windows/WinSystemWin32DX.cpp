@@ -397,7 +397,7 @@ bool CWinSystemWin32DX::SetHDR(const VideoPicture* videoPicture /*not used*/)
 
 bool CWinSystemWin32DX::IsHDRDisplay()
 {
-  if (CWIN32Util::GetWindowsHDRStatus() > 0)
+  if (CWIN32Util::GetWindowsHDRStatus() != CWIN32Util::HDR_STATUS::HDR_UNSUPPORTED)
     return true;
 
   return false;
@@ -405,7 +405,7 @@ bool CWinSystemWin32DX::IsHDRDisplay()
 
 bool CWinSystemWin32DX::GetOSHDRStatus()
 {
-  if (CWIN32Util::GetWindowsHDRStatus() == 2)
+  if (CWIN32Util::GetWindowsHDRStatus() == CWIN32Util::HDR_STATUS::HDR_ON)
     return true;
 
   return false;

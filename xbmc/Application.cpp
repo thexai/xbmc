@@ -15,6 +15,7 @@
 #include "dialogs/GUIDialogBusy.h"
 #include "events/EventLog.h"
 #include "events/NotificationEvent.h"
+#include "HDRStatus.h"
 #include "interfaces/builtins/Builtins.h"
 #include "utils/JobManager.h"
 #include "utils/Variant.h"
@@ -490,12 +491,12 @@ bool CApplication::Create(const CAppParamParser &params)
   CLog::Log(LOGNOTICE, "%s", CWIN32Util::GetResInfoString().c_str());
   CLog::Log(LOGNOTICE, "Running with %s rights", (CWIN32Util::IsCurrentUserLocalAdministrator() == TRUE) ? "administrator" : "restricted");
   CLog::Log(LOGNOTICE, "Aero is %s", (g_sysinfo.IsAeroDisabled() == true) ? "disabled" : "enabled");
-  CWIN32Util::HDR_STATUS hdrStatus = CWIN32Util::GetWindowsHDRStatus();
-  if (hdrStatus == CWIN32Util::HDR_STATUS::HDR_UNSUPPORTED)
+  HDR_STATUS hdrStatus = CWIN32Util::GetWindowsHDRStatus();
+  if (hdrStatus == HDR_STATUS::HDR_UNSUPPORTED)
     CLog::Log(LOGNOTICE, "Display is not HDR capable or cannot be detected");
   else
     CLog::Log(LOGNOTICE, "Display HDR capable is detected and Windows HDR switch is %s",
-              (hdrStatus == CWIN32Util::HDR_STATUS::HDR_ON) ? "ON" : "OFF");
+              (hdrStatus == HDR_STATUS::HDR_ON) ? "ON" : "OFF");
 #endif
 #if defined(TARGET_ANDROID)
   CLog::Log(LOGNOTICE,

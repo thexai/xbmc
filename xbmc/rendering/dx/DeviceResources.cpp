@@ -85,6 +85,11 @@ DX::DeviceResources::~DeviceResources() = default;
 
 void DX::DeviceResources::Release()
 {
+  // Restores Windows HDR initial state
+  HDR_STATUS hdrStatus = CWIN32Util::GetWindowsHDRStatus();
+  if ((hdrStatus != HDR_STATUS::HDR_UNSUPPORTED && m_HDRWindows != hdrStatus))
+    CWIN32Util::ToggleWindowsHDR();
+
   if (!m_bDeviceCreated)
     return;
 
@@ -112,15 +117,6 @@ void DX::DeviceResources::Release()
     m_d3dDebug = nullptr;
   }
 #endif
-
-  // Restores Windows HDR initial config
-  CWIN32Util::HDR_STATUS hdrStatus = CWIN32Util::GetWindowsHDRStatus();
-
-  if ((hdrStatus != CWIN32Util::HDR_STATUS::HDR_UNSUPPORTED && m_HDRWindows != hdrStatus))
-  {
-    if (CWIN32Util::ToggleWindowsHDR())
-      Sleep(2000);
-  }
 }
 
 void DX::DeviceResources::GetOutput(IDXGIOutput** ppOutput) const
@@ -297,22 +293,17 @@ bool DX::DeviceResources::SetFullScreen(bool fullscreen, RESOLUTION_INFO& res)
 // Configures resources that don't depend on the Direct3D device.
 void DX::DeviceResources::CreateDeviceIndependentResources()
 {
-  // Configures Windows HDR according GUI Settings / Player / Use HDR display capabilities
-  CWIN32Util::HDR_STATUS hdrStatus = CWIN32Util::GetWindowsHDRStatus();
+  // Configures Windows HDR according GUI Settings/Player/Use HDR display capabilities
+  HDR_STATUS hdrStatus = CWIN32Util::GetWindowsHDRStatus();
   m_HDRWindows = hdrStatus; // Saves current Windows HDR status
 
-  if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
-          Windowing()->SETTING_WINSYSTEM_IS_HDR_DISPLAY) &&
-      hdrStatus == CWIN32Util::HDR_STATUS::HDR_OFF)
+  bool useDisplayHDR = CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
+      Windowing()->SETTING_WINSYSTEM_IS_HDR_DISPLAY);
+
+  if ((useDisplayHDR && hdrStatus == HDR_STATUS::HDR_OFF) ||
+      (!useDisplayHDR && hdrStatus == HDR_STATUS::HDR_ON))
   {
-    if (CWIN32Util::ToggleWindowsHDR()) // Toggle Windows HDR on
-      Sleep(2000);
-  }
-  else if (!CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
-               Windowing()->SETTING_WINSYSTEM_IS_HDR_DISPLAY) &&
-           hdrStatus == CWIN32Util::HDR_STATUS::HDR_ON)
-  {
-    if (CWIN32Util::ToggleWindowsHDR()) // Toggle Windows HDR off
+    if (CWIN32Util::ToggleWindowsHDR())
       Sleep(2000);
   }
 }
@@ -575,7 +566,7 @@ void DX::DeviceResources::ResizeBuffers()
     }
   }
 
-  isHdrEnabled = DX::Windowing()->GetOSHDRStatus();
+  isHdrEnabled = (HDR_STATUS::HDR_ON == CWIN32Util::GetWindowsHDRStatus());
 
   if (m_swapChain != nullptr)
   {
@@ -611,7 +602,9 @@ void DX::DeviceResources::ResizeBuffers()
     swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
     swapChainDesc.Stereo = bHWStereoEnabled;
     swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    swapChainDesc.BufferCount = 3 * (1 + bHWStereoEnabled);
+    // HDR 60 fps needs 6 buffers to avoid frame drops but in Windows 10 it's good for all
+    swapChainDesc.BufferCount =
+        (m_d3dFeatureLevel >= D3D_FEATURE_LEVEL_12_0) ? 6 : 3 * (1 + bHWStereoEnabled);
     swapChainDesc.SwapEffect = (m_d3dFeatureLevel >= D3D_FEATURE_LEVEL_12_0)
                                    ? DXGI_SWAP_EFFECT_FLIP_DISCARD
                                    : DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
@@ -630,7 +623,6 @@ void DX::DeviceResources::ResizeBuffers()
          isHdrEnabled))
     {
       swapChainDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
-      swapChainDesc.BufferCount = 6; // HDR 60 fps needs 6 buffers to avoid frame drops
       hr = CreateSwapChain(swapChainDesc, scFSDesc, &swapChain);
       if (FAILED(hr))
       {

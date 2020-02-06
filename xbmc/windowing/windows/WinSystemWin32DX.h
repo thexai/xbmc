@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "HDRStatus.h"
 #include "rendering/dx/RenderSystemDX.h"
 #include "windowing/windows/WinSystemWin32.h"
 
@@ -67,7 +68,7 @@ public:
   // HDR OS/display override
   bool SetHDR(const VideoPicture* videoPicture) override;
   bool IsHDRDisplay() override;
-  bool GetOSHDRStatus() override;
+  HDR_STATUS GetOSHDRStatus() override;
 
   // HDR support
   bool IsHDROutput() const;

@@ -16,6 +16,7 @@
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
 #include "guilib/LocalizeStrings.h"
+#include "HDRStatus.h"
 #include "network/Network.h"
 #if defined(TARGET_DARWIN_OSX)
 #include "platform/darwin/osx/smc.h"
@@ -578,12 +579,10 @@ bool CSystemGUIInfo::GetBool(bool& value, const CGUIListItem *gitem, int context
       value = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_showExitButton;
       return true;
     case SYSTEM_IS_HDR_DISPLAY_OFF:
-      value = CServiceBroker::GetWinSystem()->IsHDRDisplay() &&
-              !CServiceBroker::GetWinSystem()->GetOSHDRStatus();
+      value = (HDR_STATUS::HDR_OFF == CServiceBroker::GetWinSystem()->GetOSHDRStatus());
       return true;
     case SYSTEM_IS_HDR_DISPLAY_ON:
-      value = CServiceBroker::GetWinSystem()->IsHDRDisplay() &&
-              CServiceBroker::GetWinSystem()->GetOSHDRStatus();
+      value = (HDR_STATUS::HDR_ON == CServiceBroker::GetWinSystem()->GetOSHDRStatus());
       return true;
     case SYSTEM_HAS_LOGINSCREEN:
       value = CServiceBroker::GetSettingsComponent()->GetProfileManager()->UsingLoginScreen();

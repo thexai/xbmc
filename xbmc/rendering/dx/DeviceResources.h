@@ -16,6 +16,7 @@
 #include <memory>
 
 #include "DirectXHelper.h"
+#include "HDRStatus.h"
 #include "guilib/D3DResource.h"
 #include "platform/win32/WIN32Util.h"
 
@@ -166,6 +167,6 @@ namespace DX
     bool m_bDeviceCreated;
     bool m_IsHDROutput;
 
-    CWIN32Util::HDR_STATUS m_HDRWindows;
+    HDR_STATUS m_HDRWindows;
   };
 }

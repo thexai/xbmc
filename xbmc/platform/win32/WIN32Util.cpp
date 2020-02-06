@@ -1341,7 +1341,7 @@ bool CWIN32Util::ToggleWindowsHDR()
 #endif
 }
 
-CWIN32Util::HDR_STATUS CWIN32Util::GetWindowsHDRStatus()
+HDR_STATUS CWIN32Util::GetWindowsHDRStatus()
 {
 #ifdef TARGET_WINDOWS_STORE
   HDR_STATUS status = HDR_STATUS::HDR_UNSUPPORTED;

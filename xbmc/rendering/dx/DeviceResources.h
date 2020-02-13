@@ -18,7 +18,6 @@
 #include "DirectXHelper.h"
 #include "HDRStatus.h"
 #include "guilib/D3DResource.h"
-#include "platform/win32/WIN32Util.h"
 
 struct RESOLUTION_INFO;
 

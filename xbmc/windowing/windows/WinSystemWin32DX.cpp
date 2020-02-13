@@ -384,15 +384,13 @@ HRESULT APIENTRY HookOpenAdapter10_2(D3D10DDIARG_OPENADAPTER *pOpenData)
 
 bool CWinSystemWin32DX::SetHDR(const VideoPicture* videoPicture /*not used*/)
 {
-  bool success = CWIN32Util::ToggleWindowsHDR();
-
-  if (success)
+  if (CWIN32Util::ToggleWindowsHDR())
   {
-    Sleep(2000); //Display is switching
     m_deviceResources->ReCreateSwapChain();
+    return true;
   }
 
-  return success;
+  return false;
 }
 
 bool CWinSystemWin32DX::IsHDRDisplay()

@@ -46,11 +46,13 @@ using namespace MEDIA_DETECT;
 #include "platform/win10/AsyncHelpers.h"
 #include <ppltasks.h>
 #include <winrt/Windows.Devices.Power.h>
+#include <winrt/Windows.Devices.Display.Core.h>
 #include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Graphics.Display.Core.h>
 #include <winrt/Windows.Storage.h>
 
 using namespace winrt::Windows::Devices::Power;
+using namespace winrt::Windows::Devices::Display::Core;
 using namespace winrt::Windows::Graphics::Display;
 using namespace winrt::Windows::Graphics::Display::Core;
 using namespace winrt::Windows::Storage;
@@ -1232,9 +1234,9 @@ bool CWIN32Util::SetThreadLocalLocale(bool enable /* = true */)
 
 bool CWIN32Util::ToggleWindowsHDR()
 {
-#ifdef TARGET_WINDOWS_STORE
   bool success = false;
 
+#ifdef TARGET_WINDOWS_STORE
   auto hdmiDisplayInfo = HdmiDisplayInformation::GetForCurrentView();
 
   if (hdmiDisplayInfo)
@@ -1252,10 +1254,8 @@ bool CWIN32Util::ToggleWindowsHDR()
     // NOTE: transfer for HDR is here "fake HDR" (EotfSdr) to be
     // able render SRD content with HDR ON, same as Windows HDR switch does.
     // GUI-skin is SDR. The real HDR mode is activated later when playback begins.
-    for (unsigned i = 0; i < hdmiModes.Size(); i++)
+    for (const auto& mode : hdmiModes)
     {
-      auto mode = hdmiModes.GetAt(i);
-
       if (mode.ColorSpace() == newColorSp &&
           mode.ResolutionHeightInRawPixels() == current.ResolutionHeightInRawPixels() &&
           mode.ResolutionWidthInRawPixels() == current.ResolutionWidthInRawPixels() &&
@@ -1264,26 +1264,25 @@ bool CWIN32Util::ToggleWindowsHDR()
         if (current.ColorSpace() == HdmiDisplayColorSpace::BT2020) // HDR is ON
         {
           CLog::LogF(LOGNOTICE, "Toggle Windows HDR Off (ON => OFF).");
-          hdmiDisplayInfo.RequestSetCurrentDisplayModeAsync(mode, HdmiDisplayHdrOption::None);
-          success = true;
+          success =
+              hdmiDisplayInfo.RequestSetCurrentDisplayModeAsync(mode, HdmiDisplayHdrOption::None)
+                  .GetResults();
+          break;
         }
         else // HDR is OFF
         {
           CLog::LogF(LOGNOTICE, "Toggle Windows HDR On (OFF => ON).");
-          hdmiDisplayInfo.RequestSetCurrentDisplayModeAsync(mode, HdmiDisplayHdrOption::EotfSdr);
-          success = true;
+          success =
+              hdmiDisplayInfo.RequestSetCurrentDisplayModeAsync(mode, HdmiDisplayHdrOption::EotfSdr)
+                  .GetResults();
+          break;
         }
-
-        break;
       }
     }
   }
-
-  return success;
 #else
   uint32_t pathCount = 0;
   uint32_t modeCount = 0;
-  bool success = false;
 
   if (ERROR_SUCCESS == GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount))
   {
@@ -1336,16 +1335,18 @@ bool CWIN32Util::ToggleWindowsHDR()
       }
     }
   }
+#endif
 
   return success;
-#endif
 }
 
 HDR_STATUS CWIN32Util::GetWindowsHDRStatus()
 {
-#ifdef TARGET_WINDOWS_STORE
+  bool advancedColorSupported = false;
+  bool advancedColorEnabled = false;
   HDR_STATUS status = HDR_STATUS::HDR_UNSUPPORTED;
 
+#ifdef TARGET_WINDOWS_STORE
   auto displayInformation = DisplayInformation::GetForCurrentView();
 
   if (displayInformation)
@@ -1356,26 +1357,38 @@ HDR_STATUS CWIN32Util::GetWindowsHDRStatus()
     {
       if (advancedColorInfo.CurrentAdvancedColorKind() == AdvancedColorKind::HighDynamicRange)
       {
-        status = HDR_STATUS::HDR_ON;
-        if (CServiceBroker::IsServiceManagerUp())
-          CLog::LogF(LOGDEBUG, "CurrentAdvancedColorKind() = HDR");
-      }
-      else if (advancedColorInfo.MaxLuminanceInNits() >= 400.0f)
-      {
-        status = HDR_STATUS::HDR_OFF;
-        if (CServiceBroker::IsServiceManagerUp())
-          CLog::LogF(LOGDEBUG, "MaxLuminanceInNits() >= 400");
+        advancedColorSupported = true;
+        advancedColorEnabled = true;
       }
     }
   }
+  // Try to find out if the display supports HDR even if Windows HDR switch is OFF
+  if (!advancedColorEnabled)
+  {
+    auto displayManager = DisplayManager::Create(DisplayManagerOptions::None);
 
-  return status;
+    if (displayManager)
+    {
+      auto targets = displayManager.GetCurrentTargets();
+
+      for (const auto& target : targets)
+      {
+        if (target.IsConnected())
+        {
+          auto displayMonitor = target.TryGetMonitor();
+          if (displayMonitor.MaxLuminanceInNits() >= 400.0f)
+          {
+            advancedColorSupported = true;
+            break;
+          }
+        }
+      }
+      displayManager.Close();
+    }
+  }
 #else
   uint32_t pathCount = 0;
   uint32_t modeCount = 0;
-  bool advancedColorSupported = false;
-  bool advancedColorEnabled = false;
-  HDR_STATUS status = HDR_STATUS::HDR_UNSUPPORTED;
 
   if (ERROR_SUCCESS == GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount))
   {
@@ -1406,31 +1419,31 @@ HDR_STATUS CWIN32Util::GetWindowsHDRStatus()
           }
         }
       }
-
-      std::string txStatus;
-
-      if (!advancedColorSupported)
-      {
-        status = HDR_STATUS::HDR_UNSUPPORTED;
-        txStatus = "Display is not HDR capable or cannot be detected";
-      }
-      else if (advancedColorSupported && !advancedColorEnabled)
-      {
-        status = HDR_STATUS::HDR_OFF;
-        txStatus = "Display HDR capable and current HDR status is OFF";
-      }
-      else if (advancedColorSupported && advancedColorEnabled)
-      {
-        status = HDR_STATUS::HDR_ON;
-        txStatus = "Display HDR capable and current HDR status is ON";
-      }
-
-      // Prevents logging at application start before LOGLEVEL gets configured
-      if (CServiceBroker::IsServiceManagerUp())
-        CLog::Log(LOGDEBUG, "%s", txStatus);
     }
   }
+#endif
+
+  std::string txStatus;
+
+  if (!advancedColorSupported)
+  {
+    status = HDR_STATUS::HDR_UNSUPPORTED;
+    txStatus = "Display is not HDR capable or cannot be detected";
+  }
+  else if (advancedColorSupported && !advancedColorEnabled)
+  {
+    status = HDR_STATUS::HDR_OFF;
+    txStatus = "Display HDR capable and current HDR status is OFF";
+  }
+  else if (advancedColorSupported && advancedColorEnabled)
+  {
+    status = HDR_STATUS::HDR_ON;
+    txStatus = "Display HDR capable and current HDR status is ON";
+  }
+
+  // Prevents logging at application start before LOGLEVEL gets configured
+  if (CServiceBroker::IsServiceManagerUp())
+    CLog::Log(LOGDEBUG, "%s", txStatus);
 
   return status;
-#endif
 }

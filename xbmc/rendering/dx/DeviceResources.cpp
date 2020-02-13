@@ -21,6 +21,7 @@
 #include "settings/SettingsComponent.h"
 #include "utils/log.h"
 #include "utils/SystemInfo.h"
+#include "utils/XTimeUtils.h"
 
 #ifdef _DEBUG
 #include <dxgidebug.h>
@@ -87,7 +88,7 @@ void DX::DeviceResources::Release()
 {
   // Restores Windows HDR initial state
   HDR_STATUS hdrStatus = CWIN32Util::GetWindowsHDRStatus();
-  if ((hdrStatus != HDR_STATUS::HDR_UNSUPPORTED && m_HDRWindows != hdrStatus))
+  if (m_HDRWindows != hdrStatus)
     CWIN32Util::ToggleWindowsHDR();
 
   if (!m_bDeviceCreated)
@@ -304,7 +305,7 @@ void DX::DeviceResources::CreateDeviceIndependentResources()
       (!useDisplayHDR && hdrStatus == HDR_STATUS::HDR_ON))
   {
     if (CWIN32Util::ToggleWindowsHDR())
-      Sleep(2000);
+      KODI::TIME::Sleep(1000); // Display is switching
   }
 }
 
@@ -1262,6 +1263,8 @@ void DX::DeviceResources::ReCreateSwapChain()
   m_swapChain = nullptr;
   m_deferrContext->Flush();
   m_d3dContext->Flush();
+
+  KODI::TIME::Sleep(1000); // Display is switching
 
   CreateWindowSizeDependentResources();
 }

@@ -157,15 +157,13 @@ void CWinSystemWin10DX::InitHooks(IDXGIOutput* pOutput)
 
 bool CWinSystemWin10DX::SetHDR(const VideoPicture* videoPicture /*not used*/)
 {
-  bool success = CWIN32Util::ToggleWindowsHDR();
-
-  if (success)
+  if (CWIN32Util::ToggleWindowsHDR())
   {
-    Sleep(2000); //Display is switching
     m_deviceResources->ReCreateSwapChain();
+    return true;
   }
 
-  return success;
+  return false;
 }
 
 bool CWinSystemWin10DX::IsHDRDisplay()

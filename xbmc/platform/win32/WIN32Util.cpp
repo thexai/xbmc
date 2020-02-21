@@ -1232,9 +1232,9 @@ bool CWIN32Util::SetThreadLocalLocale(bool enable /* = true */)
   return _configthreadlocale(param) != -1;
 }
 
-bool CWIN32Util::ToggleWindowsHDR()
+HDR_STATUS CWIN32Util::ToggleWindowsHDR(const std::wstring& deviceNameW, DXGI_MODE_DESC& modeDesc)
 {
-  bool success = false;
+  HDR_STATUS status = HDR_STATUS::HDR_TOGGLE_FAILED;
 
 #ifdef TARGET_WINDOWS_STORE
   auto hdmiDisplayInfo = HdmiDisplayInformation::GetForCurrentView();
@@ -1264,19 +1264,16 @@ bool CWIN32Util::ToggleWindowsHDR()
         if (current.ColorSpace() == HdmiDisplayColorSpace::BT2020) // HDR is ON
         {
           CLog::LogF(LOGNOTICE, "Toggle Windows HDR Off (ON => OFF).");
-          success =
-              hdmiDisplayInfo.RequestSetCurrentDisplayModeAsync(mode, HdmiDisplayHdrOption::None)
-                  .GetResults();
-          break;
+          if (Wait(hdmiDisplayInfo.RequestSetCurrentDisplayModeAsync(mode, HdmiDisplayHdrOption::None)))
+            status = HDR_STATUS::HDR_OFF;
         }
         else // HDR is OFF
         {
           CLog::LogF(LOGNOTICE, "Toggle Windows HDR On (OFF => ON).");
-          success =
-              hdmiDisplayInfo.RequestSetCurrentDisplayModeAsync(mode, HdmiDisplayHdrOption::EotfSdr)
-                  .GetResults();
-          break;
+          if (Wait(hdmiDisplayInfo.RequestSetCurrentDisplayModeAsync(mode, HdmiDisplayHdrOption::EotfSdr)))
+            status = HDR_STATUS::HDR_ON;
         }
+        break;
       }
     }
   }
@@ -1300,10 +1297,41 @@ bool CWIN32Util::ToggleWindowsHDR()
       setColorState.header.type = DISPLAYCONFIG_DEVICE_INFO_SET_ADVANCED_COLOR_STATE;
       setColorState.header.size = sizeof(setColorState);
 
-      for (const auto& mode : modes)
+      DISPLAYCONFIG_SOURCE_DEVICE_NAME getSourceName = {};
+      getSourceName.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
+      getSourceName.header.size = sizeof(getSourceName);
+
+      int32_t sourceId = -1;
+
+      // SOURCE (GRAPHICS CARD) <---------- path ---------> (TV) TARGET
+
+      for (const auto& mode : modes) // Get source_id for deviceName
       {
-        if (mode.infoType == DISPLAYCONFIG_MODE_INFO_TYPE_TARGET)
+        if (mode.infoType == DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE)
         {
+          getSourceName.header.adapterId.HighPart = mode.adapterId.HighPart;
+          getSourceName.header.adapterId.LowPart = mode.adapterId.LowPart;
+          getSourceName.header.id = mode.id;
+          if (ERROR_SUCCESS == DisplayConfigGetDeviceInfo(&getSourceName.header))
+          {
+            std::wstring sourceNameW = getSourceName.viewGdiDeviceName;
+            if (deviceNameW == sourceNameW)
+            {
+              sourceId = mode.id;
+              break;
+            }
+          }
+        }
+      }
+
+      // Get target conected to source_id
+      // Only try to toggle display currently used by Kodi
+      for (const auto& path : paths)
+      {
+        if (path.sourceInfo.id == sourceId)
+        {
+          const auto& mode = modes.at(path.targetInfo.modeInfoIdx);
+
           getColorInfo.header.adapterId.HighPart = mode.adapterId.HighPart;
           getColorInfo.header.adapterId.LowPart = mode.adapterId.LowPart;
           getColorInfo.header.id = mode.id;
@@ -1314,30 +1342,54 @@ bool CWIN32Util::ToggleWindowsHDR()
 
           if (ERROR_SUCCESS == DisplayConfigGetDeviceInfo(&getColorInfo.header))
           {
-            // HDR is OFF
-            if (getColorInfo.advancedColorSupported && !getColorInfo.advancedColorEnabled)
+            if (getColorInfo.advancedColorSupported)
             {
-              setColorState.enableAdvancedColor = TRUE;
-              CLog::LogF(LOGNOTICE, "Toggle Windows HDR On (OFF => ON).");
-              success = (ERROR_SUCCESS == DisplayConfigSetDeviceInfo(&setColorState.header));
-              break;
-            }
-            // HDR is ON
-            else if (getColorInfo.advancedColorSupported && getColorInfo.advancedColorEnabled)
-            {
-              setColorState.enableAdvancedColor = FALSE;
-              CLog::LogF(LOGNOTICE, "Toggle Windows HDR Off (ON => OFF).");
-              success = (ERROR_SUCCESS == DisplayConfigSetDeviceInfo(&setColorState.header));
-              break;
+              if (getColorInfo.advancedColorEnabled) // HDR is ON
+              {
+                setColorState.enableAdvancedColor = FALSE;
+                status = HDR_STATUS::HDR_OFF;
+                CLog::LogF(LOGNOTICE, "Toggle Windows HDR Off (ON => OFF).");
+              }
+              else // HDR is OFF
+              {
+                setColorState.enableAdvancedColor = TRUE;
+                status = HDR_STATUS::HDR_ON;
+                CLog::LogF(LOGNOTICE, "Toggle Windows HDR On (OFF => ON).");
+              }
+              if (ERROR_SUCCESS != DisplayConfigSetDeviceInfo(&setColorState.header))
+                status = HDR_STATUS::HDR_TOGGLE_FAILED;
             }
           }
+          break;
         }
       }
     }
   }
+
+  // Restores previous graphics mode before toggle HDR
+  if (status != HDR_STATUS::HDR_TOGGLE_FAILED && modeDesc.RefreshRate.Denominator != 0)
+  {
+    float fps = static_cast<float>(modeDesc.RefreshRate.Numerator) /
+                static_cast<float>(modeDesc.RefreshRate.Denominator);
+    int32_t est;
+    DEVMODEW devmode = {};
+    devmode.dmSize = sizeof(devmode);
+    devmode.dmPelsWidth = modeDesc.Width;
+    devmode.dmPelsHeight = modeDesc.Height;
+    devmode.dmDisplayFrequency = static_cast<uint32_t>(fps);
+    if (modeDesc.ScanlineOrdering &&
+        modeDesc.ScanlineOrdering != DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE)
+      devmode.dmDisplayFlags = DM_INTERLACED;
+    devmode.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY | DM_DISPLAYFLAGS;
+    est = ChangeDisplaySettingsExW(deviceNameW.c_str(), &devmode, nullptr, CDS_FULLSCREEN, nullptr);
+    if (est == DISP_CHANGE_SUCCESSFUL)
+      CLog::LogF(LOGDEBUG, "Previous graphics mode restored OK");
+    else
+      CLog::LogF(LOGERROR, "Previous graphics mode cannot be restored (error# = {d})", est);
+  }
 #endif
 
-  return success;
+  return status;
 }
 
 HDR_STATUS CWIN32Util::GetWindowsHDRStatus()
@@ -1443,7 +1495,7 @@ HDR_STATUS CWIN32Util::GetWindowsHDRStatus()
 
   // Prevents logging at application start before LOGLEVEL gets configured
   if (CServiceBroker::IsServiceManagerUp())
-    CLog::Log(LOGDEBUG, "%s", txStatus);
+    CLog::Log(LOGDEBUG, "{s}", txStatus);
 
   return status;
 }

@@ -8,9 +8,10 @@
 
 #pragma once
 
-enum class HDR_STATUS : uint32_t
+enum class HDR_STATUS : int32_t
 {
-  HDR_UNSUPPORTED = 0,
-  HDR_OFF         = 1,
-  HDR_ON          = 2
+  HDR_TOGGLE_FAILED = -1,
+  HDR_UNSUPPORTED   =  0,
+  HDR_OFF           =  1,
+  HDR_ON            =  2
 };

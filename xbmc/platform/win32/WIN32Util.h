@@ -12,6 +12,7 @@
 #include "URL.h"
 #include "utils/Geometry.h"
 
+#include <dxgi1_5.h>
 #include <vector>
 
 #define BONJOUR_EVENT             ( WM_USER + 0x100 )	// Message sent to the Window when a Bonjour event occurs.
@@ -66,6 +67,6 @@ public:
   static bool SetThreadLocalLocale(bool enable = true);
 
   // HDR display support
-  static bool ToggleWindowsHDR();
+  static HDR_STATUS ToggleWindowsHDR(const std::wstring& deviceNameW, DXGI_MODE_DESC& modeDesc);
   static HDR_STATUS GetWindowsHDRStatus();
 };

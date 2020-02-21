@@ -21,7 +21,6 @@
 #include "settings/SettingsComponent.h"
 #include "utils/log.h"
 #include "utils/SystemInfo.h"
-#include "utils/XTimeUtils.h"
 
 #ifdef _DEBUG
 #include <dxgidebug.h>
@@ -86,10 +85,14 @@ DX::DeviceResources::~DeviceResources() = default;
 
 void DX::DeviceResources::Release()
 {
-  // Restores Windows HDR initial state
-  HDR_STATUS hdrStatus = CWIN32Util::GetWindowsHDRStatus();
-  if (m_HDRWindows != hdrStatus)
-    CWIN32Util::ToggleWindowsHDR();
+  // Toggle HDR Off
+  if (m_IsHDROutput)
+  {
+    DXGI_MODE_DESC md = {};
+    DXGI_OUTPUT_DESC od = {};
+    m_output->GetDesc(&od);
+    CWIN32Util::ToggleWindowsHDR(od.DeviceName, md);
+  }
 
   if (!m_bDeviceCreated)
     return;
@@ -294,19 +297,8 @@ bool DX::DeviceResources::SetFullScreen(bool fullscreen, RESOLUTION_INFO& res)
 // Configures resources that don't depend on the Direct3D device.
 void DX::DeviceResources::CreateDeviceIndependentResources()
 {
-  // Configures Windows HDR according GUI Settings/Player/Use HDR display capabilities
-  HDR_STATUS hdrStatus = CWIN32Util::GetWindowsHDRStatus();
-  m_HDRWindows = hdrStatus; // Saves current Windows HDR status
-
-  bool useDisplayHDR = CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
-      Windowing()->SETTING_WINSYSTEM_IS_HDR_DISPLAY);
-
-  if ((useDisplayHDR && hdrStatus == HDR_STATUS::HDR_OFF) ||
-      (!useDisplayHDR && hdrStatus == HDR_STATUS::HDR_ON))
-  {
-    if (CWIN32Util::ToggleWindowsHDR())
-      KODI::TIME::Sleep(1000); // Display is switching
-  }
+  // Saves HDR suppoprted flag
+  m_IsHDRSupported = (HDR_STATUS::HDR_UNSUPPORTED != CWIN32Util::GetWindowsHDRStatus());
 }
 
 // Configures the Direct3D device, and stores handles to it and the device context.
@@ -1247,24 +1239,34 @@ void DX::DeviceResources::SetHdrColorSpace(const DXGI_COLOR_SPACE_TYPE colorSpac
   }
 }
 
-void DX::DeviceResources::ReCreateSwapChain()
+void DX::DeviceResources::ToggleHDR()
 {
-  if (m_swapChain == nullptr)
-    return;
+  DXGI_MODE_DESC md = {};
 
-  CLog::LogF(LOGDEBUG, "Re-create swapchain due HDR <-> SDR switch");
-
-  BOOL bFullcreen = 0;
-  m_swapChain->GetFullscreenState(&bFullcreen, nullptr);
-  if (!!bFullcreen)
+  // Kill swapchain
+  if (m_swapChain)
   {
-    m_swapChain->SetFullscreenState(false, nullptr); // mandatory before releasing swapchain
+    CLog::LogF(LOGDEBUG, "Re-create swapchain due HDR <-> SDR switch");
+    GetDisplayMode(&md);
+    BOOL bFullcreen = 0;
+    m_swapChain->GetFullscreenState(&bFullcreen, nullptr);
+    if (!!bFullcreen)
+      m_swapChain->SetFullscreenState(false, nullptr);
+    m_swapChain = nullptr;
+    m_deferrContext->Flush();
+    m_d3dContext->Flush();
   }
-  m_swapChain = nullptr;
-  m_deferrContext->Flush();
-  m_d3dContext->Flush();
 
-  KODI::TIME::Sleep(1000); // Display is switching
+  // Toggle display HDR
+  DX::Windowing()->SetAlteringWindow(true);
 
+  DXGI_OUTPUT_DESC od = {};
+  m_output->GetDesc(&od);
+
+  CWIN32Util::ToggleWindowsHDR(od.DeviceName, md);
+
+  DX::Windowing()->SetAlteringWindow(false);
+
+  // Re-create swapchain
   CreateWindowSizeDependentResources();
 }

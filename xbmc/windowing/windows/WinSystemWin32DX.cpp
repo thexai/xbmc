@@ -384,13 +384,9 @@ HRESULT APIENTRY HookOpenAdapter10_2(D3D10DDIARG_OPENADAPTER *pOpenData)
 
 bool CWinSystemWin32DX::SetHDR(const VideoPicture* videoPicture /*not used*/)
 {
-  if (CWIN32Util::ToggleWindowsHDR())
-  {
-    m_deviceResources->ReCreateSwapChain();
-    return true;
-  }
+  m_deviceResources->ToggleHDR();
 
-  return false;
+  return true;
 }
 
 bool CWinSystemWin32DX::IsHDRDisplay()
@@ -404,6 +400,11 @@ bool CWinSystemWin32DX::IsHDRDisplay()
 HDR_STATUS CWinSystemWin32DX::GetOSHDRStatus()
 {
   return CWIN32Util::GetWindowsHDRStatus();
+}
+
+void CWinSystemWin32DX::ToggleHDR()
+{
+  m_deviceResources->ToggleHDR();
 }
 
 bool CWinSystemWin32DX::IsHDROutput() const

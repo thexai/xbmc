@@ -43,6 +43,14 @@ enum RenderMethod
   RENDER_SW = 0x03,
 };
 
+enum class HDR_TYPE : uint32_t
+{
+  HDR_NONE_SDR = 0x00,
+  HDR_HDR10    = 0x01,
+  HDR_HLG      = 0x02,
+  HDR_REC2020  = 0x03
+};
+
 class CRenderBuffer
 {
 public:
@@ -170,8 +178,7 @@ protected:
   std::map<int, CRenderBuffer*> m_renderBuffers;
 
   DXGI_HDR_METADATA_HDR10 m_lastHdr10 = {};
+  HDR_TYPE m_HdrType = HDR_TYPE::HDR_NONE_SDR;
   int m_iCntMetaData = 0;
-  bool m_isHdrEnabled = false;
-  bool m_isHlgEnabled = false;
-  bool m_isRec2020Enabled = false;
+  bool m_AutoSwitchHDR = false;
 };

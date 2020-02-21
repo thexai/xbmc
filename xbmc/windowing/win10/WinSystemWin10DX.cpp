@@ -157,13 +157,9 @@ void CWinSystemWin10DX::InitHooks(IDXGIOutput* pOutput)
 
 bool CWinSystemWin10DX::SetHDR(const VideoPicture* videoPicture /*not used*/)
 {
-  if (CWIN32Util::ToggleWindowsHDR())
-  {
-    m_deviceResources->ReCreateSwapChain();
-    return true;
-  }
+  m_deviceResources->ToggleHDR();
 
-  return false;
+  return true;
 }
 
 bool CWinSystemWin10DX::IsHDRDisplay()
@@ -177,6 +173,11 @@ bool CWinSystemWin10DX::IsHDRDisplay()
 HDR_STATUS CWinSystemWin10DX::GetOSHDRStatus()
 {
   return CWIN32Util::GetWindowsHDRStatus();
+}
+
+void CWinSystemWin10DX::ToggleHDR()
+{
+  m_deviceResources->ToggleHDR();
 }
 
 bool CWinSystemWin10DX::IsHDROutput() const

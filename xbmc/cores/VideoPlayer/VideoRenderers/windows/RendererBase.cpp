@@ -173,7 +173,7 @@ bool CRendererBase::Configure(const VideoPicture& picture, float fps, unsigned o
   m_lastHdr10 = {};
   m_iCntMetaData = 0;
   m_HdrType = HDR_TYPE::HDR_NONE_SDR;
-  m_AutoSwitchHDR = DX::DeviceResources::Get()->IsHDRSupported() &&
+  m_AutoSwitchHDR = DX::Windowing()->IsHDRSupported() &&
                     CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
                         DX::Windowing()->SETTING_WINSYSTEM_IS_HDR_DISPLAY);
 
@@ -226,12 +226,9 @@ void CRendererBase::Render(CD3DTexture& target, const CRect& sourceRect, const C
       return;
   }
 
-  if (m_AutoSwitchHDR && !DX::Windowing()->IsHDROutput())
+  if (m_AutoSwitchHDR && buf->primaries == AVCOL_PRI_BT2020 && !DX::Windowing()->IsHDROutput())
   {
-    if (buf->primaries == AVCOL_PRI_BT2020)
-    {
-      DX::Windowing()->ToggleHDR(); // Toggle display HDR ON
-    }
+    DX::Windowing()->ToggleHDR(); // Toggle display HDR ON
   }
 
   if (DX::Windowing()->IsHDROutput())

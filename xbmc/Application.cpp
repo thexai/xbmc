@@ -1633,7 +1633,7 @@ bool CApplication::OnAction(const CAction &action)
   // Display HDR : toggle HDR on/off
   if (action.GetID() == ACTION_HDR_TOGGLE)
   {
-    CServiceBroker::GetWinSystem()->SetHDR(nullptr);
+    CServiceBroker::GetWinSystem()->ToggleHDR();
     return true;
   }
   // built in functions : execute the built-in

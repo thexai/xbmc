@@ -85,8 +85,9 @@ DX::DeviceResources::~DeviceResources() = default;
 
 void DX::DeviceResources::Release()
 {
-  // Toggle HDR Off
-  if (m_IsHDROutput)
+  // Restores HDR off if is on and auto switch is enabled
+  if (m_IsHDROutput && CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
+                           DX::Windowing()->SETTING_WINSYSTEM_IS_HDR_DISPLAY))
   {
     DXGI_MODE_DESC md = {};
     DXGI_OUTPUT_DESC od = {};
@@ -1239,15 +1240,24 @@ void DX::DeviceResources::SetHdrColorSpace(const DXGI_COLOR_SPACE_TYPE colorSpac
   }
 }
 
-void DX::DeviceResources::ToggleHDR()
+HDR_STATUS DX::DeviceResources::ToggleHDR()
 {
   DXGI_MODE_DESC md = {};
+  DXGI_OUTPUT_DESC od = {};
+
+  m_output->GetDesc(&od);
+  if (m_swapChain)
+    GetDisplayMode(&md);
+
+  // Toggle display HDR
+  DX::Windowing()->SetAlteringWindow(true);
+
+  HDR_STATUS hdrStatus = CWIN32Util::ToggleWindowsHDR(od.DeviceName, md);
 
   // Kill swapchain
-  if (m_swapChain)
+  if (m_swapChain && hdrStatus != HDR_STATUS::HDR_TOGGLE_FAILED)
   {
     CLog::LogF(LOGDEBUG, "Re-create swapchain due HDR <-> SDR switch");
-    GetDisplayMode(&md);
     BOOL bFullcreen = 0;
     m_swapChain->GetFullscreenState(&bFullcreen, nullptr);
     if (!!bFullcreen)
@@ -1257,16 +1267,15 @@ void DX::DeviceResources::ToggleHDR()
     m_d3dContext->Flush();
   }
 
-  // Toggle display HDR
-  DX::Windowing()->SetAlteringWindow(true);
-
-  DXGI_OUTPUT_DESC od = {};
-  m_output->GetDesc(&od);
-
-  CWIN32Util::ToggleWindowsHDR(od.DeviceName, md);
-
   DX::Windowing()->SetAlteringWindow(false);
 
   // Re-create swapchain
-  CreateWindowSizeDependentResources();
+  if (hdrStatus != HDR_STATUS::HDR_TOGGLE_FAILED)
+  {
+    CreateWindowSizeDependentResources();
+
+    DX::Windowing()->NotifyAppFocusChange(true);
+  }
+
+  return hdrStatus;
 }

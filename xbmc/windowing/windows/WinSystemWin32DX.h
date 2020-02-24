@@ -66,12 +66,12 @@ public:
   void FixRefreshRateIfNecessary(const D3D10DDIARG_CREATERESOURCE* pResource) const;
 
   // HDR OS/display override
-  bool SetHDR(const VideoPicture* videoPicture) override;
   bool IsHDRDisplay() override;
+  HDR_STATUS ToggleHDR() override;
   HDR_STATUS GetOSHDRStatus() override;
 
   // HDR support
-  void ToggleHDR();
+  bool IsHDRSupported() const;
   bool IsHDROutput() const;
   void SetHdrMetaData(DXGI_HDR_METADATA_HDR10& hdr10) const;
   void SetHdrColorSpace(const DXGI_COLOR_SPACE_TYPE colorSpace) const;

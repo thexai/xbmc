@@ -1239,42 +1239,44 @@ HDR_STATUS CWIN32Util::ToggleWindowsHDR(const std::wstring& deviceNameW, DXGI_MO
 #ifdef TARGET_WINDOWS_STORE
   auto hdmiDisplayInfo = HdmiDisplayInformation::GetForCurrentView();
 
-  if (hdmiDisplayInfo)
+  if (hdmiDisplayInfo == nullptr)
+    return status;
+
+  auto current = hdmiDisplayInfo.GetCurrentDisplayMode();
+
+  auto newColorSp = (current.ColorSpace() == HdmiDisplayColorSpace::BT2020)
+                        ? HdmiDisplayColorSpace::BT709
+                        : HdmiDisplayColorSpace::BT2020;
+
+  auto modes = hdmiDisplayInfo.GetSupportedDisplayModes();
+
+  // Browse over all modes available like the current (resolution and refresh)
+  // but reciprocals HDR (color space and transfer).
+  // NOTE: transfer for HDR is here "fake HDR" (EotfSdr) to be
+  // able render SRD content with HDR ON, same as Windows HDR switch does.
+  // GUI-skin is SDR. The real HDR mode is activated later when playback begins.
+  for (const auto& mode : modes)
   {
-    auto current = hdmiDisplayInfo.GetCurrentDisplayMode();
-
-    auto newColorSp = (current.ColorSpace() == HdmiDisplayColorSpace::BT2020)
-                          ? HdmiDisplayColorSpace::BT709
-                          : HdmiDisplayColorSpace::BT2020;
-
-    auto hdmiModes = hdmiDisplayInfo.GetSupportedDisplayModes();
-
-    // Browse over all modes available like the current (resolution and refresh)
-    // but reciprocals HDR (color space and transfer).
-    // NOTE: transfer for HDR is here "fake HDR" (EotfSdr) to be
-    // able render SRD content with HDR ON, same as Windows HDR switch does.
-    // GUI-skin is SDR. The real HDR mode is activated later when playback begins.
-    for (const auto& mode : hdmiModes)
+    if (mode.ColorSpace() == newColorSp &&
+        mode.ResolutionHeightInRawPixels() == current.ResolutionHeightInRawPixels() &&
+        mode.ResolutionWidthInRawPixels() == current.ResolutionWidthInRawPixels() &&
+        mode.StereoEnabled() == false && fabs(mode.RefreshRate() - current.RefreshRate()) < 0.0001)
     {
-      if (mode.ColorSpace() == newColorSp &&
-          mode.ResolutionHeightInRawPixels() == current.ResolutionHeightInRawPixels() &&
-          mode.ResolutionWidthInRawPixels() == current.ResolutionWidthInRawPixels() &&
-          mode.StereoEnabled() == false && abs(mode.RefreshRate() - current.RefreshRate()) < 0.01)
+      if (current.ColorSpace() == HdmiDisplayColorSpace::BT2020) // HDR is ON
       {
-        if (current.ColorSpace() == HdmiDisplayColorSpace::BT2020) // HDR is ON
-        {
-          CLog::LogF(LOGNOTICE, "Toggle Windows HDR Off (ON => OFF).");
-          if (Wait(hdmiDisplayInfo.RequestSetCurrentDisplayModeAsync(mode, HdmiDisplayHdrOption::None)))
-            status = HDR_STATUS::HDR_OFF;
-        }
-        else // HDR is OFF
-        {
-          CLog::LogF(LOGNOTICE, "Toggle Windows HDR On (OFF => ON).");
-          if (Wait(hdmiDisplayInfo.RequestSetCurrentDisplayModeAsync(mode, HdmiDisplayHdrOption::EotfSdr)))
-            status = HDR_STATUS::HDR_ON;
-        }
-        break;
+        CLog::LogF(LOGNOTICE, "Toggle Windows HDR Off (ON => OFF).");
+        if (Wait(hdmiDisplayInfo.RequestSetCurrentDisplayModeAsync(mode,
+                                                                   HdmiDisplayHdrOption::None)))
+          status = HDR_STATUS::HDR_OFF;
       }
+      else // HDR is OFF
+      {
+        CLog::LogF(LOGNOTICE, "Toggle Windows HDR On (OFF => ON).");
+        if (Wait(hdmiDisplayInfo.RequestSetCurrentDisplayModeAsync(mode,
+                                                                   HdmiDisplayHdrOption::EotfSdr)))
+          status = HDR_STATUS::HDR_ON;
+      }
+      break;
     }
   }
 #else

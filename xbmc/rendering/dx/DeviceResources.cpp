@@ -90,9 +90,7 @@ void DX::DeviceResources::Release()
                            DX::Windowing()->SETTING_WINSYSTEM_IS_HDR_DISPLAY))
   {
     DXGI_MODE_DESC md = {};
-    DXGI_OUTPUT_DESC od = {};
-    m_output->GetDesc(&od);
-    CWIN32Util::ToggleWindowsHDR(od.DeviceName, md);
+    CWIN32Util::ToggleWindowsHDR(md);
   }
 
   if (!m_bDeviceCreated)
@@ -1167,7 +1165,7 @@ void DX::DeviceResources::SetHdrMetaData(DXGI_HDR_METADATA_HDR10& hdr10) const
   {
     if (SUCCEEDED(swapChain4->SetHDRMetaData(DXGI_HDR_METADATA_TYPE_HDR10, sizeof(hdr10), &hdr10)))
     {
-      CLog::LogF(LOGNOTICE,
+      CLog::LogF(LOGDEBUG,
                  "(raw) RP {0} {1} | GP {2} {3} | BP {4} {5} | WP {6} {7} | Max ML {8} | min ML "
                  "{9} | Max CLL {10} | Max FALL {11}",
                  hdr10.RedPrimary[0], hdr10.RedPrimary[1], hdr10.GreenPrimary[0],
@@ -1243,16 +1241,14 @@ void DX::DeviceResources::SetHdrColorSpace(const DXGI_COLOR_SPACE_TYPE colorSpac
 HDR_STATUS DX::DeviceResources::ToggleHDR()
 {
   DXGI_MODE_DESC md = {};
-  DXGI_OUTPUT_DESC od = {};
 
-  m_output->GetDesc(&od);
   if (m_swapChain)
     GetDisplayMode(&md);
 
   // Toggle display HDR
   DX::Windowing()->SetAlteringWindow(true);
 
-  HDR_STATUS hdrStatus = CWIN32Util::ToggleWindowsHDR(od.DeviceName, md);
+  HDR_STATUS hdrStatus = CWIN32Util::ToggleWindowsHDR(md);
 
   // Kill swapchain
   if (m_swapChain && hdrStatus != HDR_STATUS::HDR_TOGGLE_FAILED)

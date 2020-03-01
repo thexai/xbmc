@@ -23,18 +23,6 @@
 						<visible>System.ShowExitButton</visible>
 					</item>
 					<item>
-						<label>$LOCALIZE[13037]</label>
-						<onclick>ToggleDisplayHDR()</onclick>
-						<onclick>dialog.close(all,true)</onclick>
-						<visible>System.IsHDRDisplayOff</visible>
-					</item>
-					<item>
-						<label>$LOCALIZE[13038]</label>
-						<onclick>ToggleDisplayHDR()</onclick>
-						<onclick>dialog.close(all,true)</onclick>
-						<visible>System.IsHDRDisplayOn</visible>
-					</item>
-					<item>
 						<label>$LOCALIZE[13016]</label>
 						<onclick>Powerdown()</onclick>
 						<visible>System.CanPowerDown</visible>

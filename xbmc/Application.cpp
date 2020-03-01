@@ -13,6 +13,7 @@
 #include "AppParamParser.h"
 #include "AppInboundProtocol.h"
 #include "dialogs/GUIDialogBusy.h"
+#include "dialogs/GUIDialogKaiToast.h"
 #include "events/EventLog.h"
 #include "events/NotificationEvent.h"
 #include "HDRStatus.h"
@@ -1633,7 +1634,24 @@ bool CApplication::OnAction(const CAction &action)
   // Display HDR : toggle HDR on/off
   if (action.GetID() == ACTION_HDR_TOGGLE)
   {
-    CServiceBroker::GetWinSystem()->ToggleHDR();
+    HDR_STATUS hdrStatus = CServiceBroker::GetWinSystem()->ToggleHDR();
+
+    std::string caption = "";
+    std::string message = "";
+
+    if (hdrStatus == HDR_STATUS::HDR_OFF)
+    {
+      caption = "HDR is OFF";
+      message = "Display HDR is Off";
+    }
+    else if (hdrStatus == HDR_STATUS::HDR_ON)
+    {
+      caption = "HDR is ON";
+      message = "Display HDR is On";
+    }
+    if (caption.length())
+      CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::eMessageType::Info, caption,
+                                            message, TOAST_DISPLAY_TIME, true, TOAST_DISPLAY_TIME);
     return true;
   }
   // built in functions : execute the built-in

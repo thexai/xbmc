@@ -375,16 +375,6 @@ static int ToggleDirty(const std::vector<std::string>&)
   return 0;
 }
 
-/*! \brief Toggle display HDR On/Off (equivalent to Windows HDR switch in display settings).
- *  \param params (ignored)
- */
-static int ToggleDisplayHDR(const std::vector<std::string>&)
-{
-  CServiceBroker::GetWinSystem()->ToggleHDR();
-
-  return 0;
-}
-
 // Note: For new Texts with comma add a "\" before!!! Is used for table text.
 //
 /// \page page_List_of_built_in_functions
@@ -553,11 +543,6 @@ static int ToggleDisplayHDR(const std::vector<std::string>&)
 ///     ,
 ///     makes dirty regions visible for debugging proposes.
 ///   }
-///   \table_row2_l{
-///     <b>`ToggleDisplayHDR`</b>
-///     ,
-///     Toggles display HDR On/Off and restarts Kodi.
-///   }
 ///  \table_end
 ///
 
@@ -579,7 +564,6 @@ CBuiltins::CommandMap CGUIBuiltins::GetOperations() const
            {"setproperty",                    {"Sets a window property for the current focused window/dialog (key,value)", 2, SetProperty}},
            {"setstereomode",                  {"Changes the stereo mode of the GUI. Params can be: toggle, next, previous, select, tomono or any of the supported stereomodes (off, split_vertical, split_horizontal, row_interleaved, hardware_based, anaglyph_cyan_red, anaglyph_green_magenta, anaglyph_yellow_blue, monoscopic)", 1, SetStereoMode}},
            {"takescreenshot",                 {"Takes a Screenshot", 0, Screenshot}},
-           {"toggledirtyregionvisualization", {"Enables/disables dirty-region visualization", 0, ToggleDirty}},
-           {"toggledisplayhdr",               {"Toggles display HDR On/Off. Function always invert current state. In Windows is equivalent to Windows HDR switch in display settings", 0, ToggleDisplayHDR}}
+           {"toggledirtyregionvisualization", {"Enables/disables dirty-region visualization", 0, ToggleDirty}}
          };
 }

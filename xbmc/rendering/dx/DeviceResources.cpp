@@ -85,14 +85,6 @@ DX::DeviceResources::~DeviceResources() = default;
 
 void DX::DeviceResources::Release()
 {
-  // Restores HDR off if is on and auto switch is enabled
-  if (m_IsHDROutput && CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
-                           DX::Windowing()->SETTING_WINSYSTEM_IS_HDR_DISPLAY))
-  {
-    DXGI_MODE_DESC md = {};
-    CWIN32Util::ToggleWindowsHDR(md);
-  }
-
   if (!m_bDeviceCreated)
     return;
 
@@ -1224,6 +1216,9 @@ void DX::DeviceResources::SetHdrColorSpace(const DXGI_COLOR_SPACE_TYPE colorSpac
           break;
         case DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P2020:
           cs = DXGI_COLOR_SPACE_RGB_STUDIO_G22_NONE_P2020;
+          break;
+        case DXGI_COLOR_SPACE_YCBCR_FULL_GHLG_TOPLEFT_P2020:
+          cs = DXGI_COLOR_SPACE_YCBCR_STUDIO_GHLG_TOPLEFT_P2020;
           break;
       }
     }

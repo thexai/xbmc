@@ -507,15 +507,21 @@ bool CProcessorHD::Render(CRect src, CRect dst, ID3D11Resource* target, CRenderB
 
     if (DX::Windowing()->IsHDROutput())
     {
-      if ((views[2]->color_transfer == AVCOL_TRC_SMPTE2084 ||
-           views[2]->color_transfer == AVCOL_TRC_ARIB_STD_B67) &&
-          views[2]->primaries == AVCOL_PRI_BT2020)
+      if (views[2]->color_transfer == AVCOL_TRC_SMPTE2084 &&
+          views[2]->primaries == AVCOL_PRI_BT2020) // HDR10
       {
         target_color = DX::Windowing()->UseLimitedColor()
                            ? DXGI_COLOR_SPACE_RGB_STUDIO_G2084_NONE_P2020
                            : DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
       }
-      else if (views[2]->primaries == AVCOL_PRI_BT2020)
+      else if (views[2]->color_transfer == AVCOL_TRC_ARIB_STD_B67 &&
+               views[2]->primaries == AVCOL_PRI_BT2020) // HLG
+      {
+        target_color = DX::Windowing()->UseLimitedColor()
+                           ? DXGI_COLOR_SPACE_YCBCR_STUDIO_GHLG_TOPLEFT_P2020
+                           : DXGI_COLOR_SPACE_YCBCR_FULL_GHLG_TOPLEFT_P2020;
+      }
+      else if (views[2]->primaries == AVCOL_PRI_BT2020) // Rec.2020
       {
         target_color = DX::Windowing()->UseLimitedColor()
                            ? DXGI_COLOR_SPACE_RGB_STUDIO_G22_NONE_P2020

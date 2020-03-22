@@ -137,6 +137,8 @@ CRendererBase::~CRendererBase()
   {
     CLog::LogF(LOGDEBUG, "Restoring SDR rendering");
     DX::Windowing()->SetHdrColorSpace(DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709);
+    if (m_AutoSwitchHDR)
+      DX::Windowing()->ToggleHDR(); // Toggle display HDR OFF
   }
   Flush(false);
 }
@@ -263,9 +265,9 @@ void CRendererBase::Render(CD3DTexture& target, const CRect& sourceRect, const C
     {
       if (m_HdrType != HDR_TYPE::HDR_HLG)
       {
-        // Switch to HLG rendering (internally converts HLG to HDR10)
+        // Switch to HLG rendering
         CLog::LogF(LOGNOTICE, "Switching to HLG rendering");
-        DX::Windowing()->SetHdrColorSpace(DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020);
+        DX::Windowing()->SetHdrColorSpace(DXGI_COLOR_SPACE_YCBCR_FULL_GHLG_TOPLEFT_P2020);
         m_HdrType = HDR_TYPE::HDR_HLG;
       }
     }

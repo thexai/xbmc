@@ -1636,22 +1636,18 @@ bool CApplication::OnAction(const CAction &action)
   {
     HDR_STATUS hdrStatus = CServiceBroker::GetWinSystem()->ToggleHDR();
 
-    std::string caption = "";
-    std::string message = "";
-
     if (hdrStatus == HDR_STATUS::HDR_OFF)
     {
-      caption = "HDR is OFF";
-      message = "Display HDR is Off";
+      CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::eMessageType::Info, "HDR is OFF",
+                                            "Display HDR is Off", TOAST_DISPLAY_TIME, true,
+                                            TOAST_DISPLAY_TIME);
     }
     else if (hdrStatus == HDR_STATUS::HDR_ON)
     {
-      caption = "HDR is ON";
-      message = "Display HDR is On";
+      CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::eMessageType::Info, "HDR is ON",
+                                            "Display HDR is On", TOAST_DISPLAY_TIME, true,
+                                            TOAST_DISPLAY_TIME);
     }
-    if (caption.length())
-      CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::eMessageType::Info, caption,
-                                            message, TOAST_DISPLAY_TIME, true, TOAST_DISPLAY_TIME);
     return true;
   }
   // built in functions : execute the built-in

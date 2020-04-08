@@ -57,6 +57,7 @@ if(UNIX)
   option(ENABLE_INTERNAL_FSTRCMP "Enable internal fstrcmp?" OFF)
   option(ENABLE_INTERNAL_FLATBUFFERS "Enable internal flatbuffers?" OFF)
   option(ENABLE_INTERNAL_DAV1D "Enable internal dav1d?" OFF)
+  option(ENABLE_INTERNAL_UDFREAD "Enable internal udfread?" OFF)
 endif()
 # System options
 if(NOT WIN32)
@@ -154,7 +155,7 @@ set(optional_deps Alsa
                   SmbClient
                   Sndio
                   UDEV
-                  Udf
+                  Udfread
                   XSLT
                   ${PLATFORM_OPTIONAL_DEPS})
 

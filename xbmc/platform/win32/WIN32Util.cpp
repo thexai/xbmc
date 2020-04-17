@@ -1377,7 +1377,7 @@ HDR_STATUS CWIN32Util::ToggleWindowsHDR(DXGI_MODE_DESC& modeDesc)
     if (est == DISP_CHANGE_SUCCESSFUL)
       CLog::LogF(LOGDEBUG, "Previous graphics mode restored OK");
     else
-      CLog::LogF(LOGERROR, "Previous graphics mode cannot be restored (error# = {d})", est);
+      CLog::LogF(LOGERROR, "Previous graphics mode cannot be restored (error# {})", est);
   }
 #endif
 
@@ -1490,27 +1490,24 @@ HDR_STATUS CWIN32Util::GetWindowsHDRStatus()
   }
 #endif
 
-  std::string txStatus;
-
   if (!advancedColorSupported)
   {
     status = HDR_STATUS::HDR_UNSUPPORTED;
-    txStatus = "Display is not HDR capable or cannot be detected";
+    if (CServiceBroker::IsServiceManagerUp())
+      CLog::LogF(LOGDEBUG, "Display is not HDR capable or cannot be detected");
   }
   else if (advancedColorSupported && !advancedColorEnabled)
   {
     status = HDR_STATUS::HDR_OFF;
-    txStatus = "Display HDR capable and current HDR status is OFF";
+    if (CServiceBroker::IsServiceManagerUp())
+      CLog::LogF(LOGDEBUG, "Display HDR capable and current HDR status is OFF");
   }
   else if (advancedColorSupported && advancedColorEnabled)
   {
     status = HDR_STATUS::HDR_ON;
-    txStatus = "Display HDR capable and current HDR status is ON";
+    if (CServiceBroker::IsServiceManagerUp())
+      CLog::LogF(LOGDEBUG, "Display HDR capable and current HDR status is ON");
   }
-
-  // Prevents logging at application start before LOGLEVEL gets configured
-  if (CServiceBroker::IsServiceManagerUp())
-    CLog::Log(LOGDEBUG, "{s}", txStatus);
 
   return status;
 }

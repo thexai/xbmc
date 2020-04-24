@@ -1265,14 +1265,14 @@ HDR_STATUS CWIN32Util::ToggleWindowsHDR(DXGI_MODE_DESC& modeDesc)
     {
       if (current.ColorSpace() == HdmiDisplayColorSpace::BT2020) // HDR is ON
       {
-        CLog::LogF(LOGNOTICE, "Toggle Windows HDR Off (ON => OFF).");
+        CLog::LogF(LOGINFO, "Toggle Windows HDR Off (ON => OFF).");
         if (Wait(hdmiDisplayInfo.RequestSetCurrentDisplayModeAsync(mode,
                                                                    HdmiDisplayHdrOption::None)))
           status = HDR_STATUS::HDR_OFF;
       }
       else // HDR is OFF
       {
-        CLog::LogF(LOGNOTICE, "Toggle Windows HDR On (OFF => ON).");
+        CLog::LogF(LOGINFO, "Toggle Windows HDR On (OFF => ON).");
         if (Wait(hdmiDisplayInfo.RequestSetCurrentDisplayModeAsync(mode,
                                                                    HdmiDisplayHdrOption::EotfSdr)))
           status = HDR_STATUS::HDR_ON;
@@ -1339,13 +1339,13 @@ HDR_STATUS CWIN32Util::ToggleWindowsHDR(DXGI_MODE_DESC& modeDesc)
                 {
                   setColorState.enableAdvancedColor = FALSE;
                   status = HDR_STATUS::HDR_OFF;
-                  CLog::LogF(LOGNOTICE, "Toggle Windows HDR Off (ON => OFF).");
+                  CLog::LogF(LOGINFO, "Toggle Windows HDR Off (ON => OFF).");
                 }
                 else // HDR is OFF
                 {
                   setColorState.enableAdvancedColor = TRUE;
                   status = HDR_STATUS::HDR_ON;
-                  CLog::LogF(LOGNOTICE, "Toggle Windows HDR On (OFF => ON).");
+                  CLog::LogF(LOGINFO, "Toggle Windows HDR On (OFF => ON).");
                 }
                 if (ERROR_SUCCESS != DisplayConfigSetDeviceInfo(&setColorState.header))
                   status = HDR_STATUS::HDR_TOGGLE_FAILED;

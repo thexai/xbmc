@@ -502,9 +502,9 @@ bool CApplication::Create(const CAppParamParser &params)
   CLog::Log(LOGINFO, "Aero is %s", (g_sysinfo.IsAeroDisabled() == true) ? "disabled" : "enabled");
   HDR_STATUS hdrStatus = CWIN32Util::GetWindowsHDRStatus();
   if (hdrStatus == HDR_STATUS::HDR_UNSUPPORTED)
-    CLog::Log(LOGNOTICE, "Display is not HDR capable or cannot be detected");
+    CLog::Log(LOGINFO, "Display is not HDR capable or cannot be detected");
   else
-    CLog::Log(LOGNOTICE, "Display HDR capable is detected and Windows HDR switch is %s",
+    CLog::Log(LOGINFO, "Display HDR capable is detected and Windows HDR switch is %s",
               (hdrStatus == HDR_STATUS::HDR_ON) ? "ON" : "OFF");
 #endif
 #if defined(TARGET_ANDROID)

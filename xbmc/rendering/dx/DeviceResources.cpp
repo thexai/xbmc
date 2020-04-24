@@ -654,13 +654,13 @@ void DX::DeviceResources::ResizeBuffers()
         m_IsHDROutput = false;
         txOutput = "SDR";
       }
-      CLog::LogF(LOGNOTICE, "10 bit swapchain is used with {} buffers and {} output",
+      CLog::LogF(LOGINFO, "10 bit swapchain is used with {} buffers and {} output",
                  swapChainDesc.BufferCount, txOutput);
     }
     else
     {
       m_IsHDROutput = false;
-      CLog::LogF(LOGNOTICE, "8 bit swapchain is used with {} buffers and SDR output",
+      CLog::LogF(LOGINFO, "8 bit swapchain is used with {} buffers and SDR output",
                  swapChainDesc.BufferCount);
     }
 
@@ -1179,7 +1179,7 @@ void DX::DeviceResources::SetHdrMetaData(DXGI_HDR_METADATA_HDR10& hdr10) const
       const double Max_ML = static_cast<double>(hdr10.MaxMasteringLuminance) / FACTOR_2;
       const double min_ML = static_cast<double>(hdr10.MinMasteringLuminance) / FACTOR_2;
 
-      CLog::LogF(LOGNOTICE,
+      CLog::LogF(LOGINFO,
                  "RP {:0.3f} {:0.3f} | GP {:0.3f} {:0.3f} | BP {:0.3f} {:0.3f} | WP {:0.3f} "
                  "{:0.3f} | Max ML {:0.0f} | min ML {:0.3f} | Max CLL {} | Max FALL {}",
                  RP_0, RP_1, GP_0, GP_1, BP_0, BP_1, WP_0, WP_1, Max_ML, min_ML,

@@ -253,7 +253,7 @@ void CRendererBase::Render(CD3DTexture& target, const CRect& sourceRect, const C
       {
         // Sets HDR10 metadata and enables HDR10 color space (switch to HDR rendering)
         DX::Windowing()->SetHdrMetaData(hdr10);
-        CLog::LogF(LOGNOTICE, "Switching to HDR rendering");
+        CLog::LogF(LOGINFO, "Switching to HDR rendering");
         DX::Windowing()->SetHdrColorSpace(DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020);
         m_HdrType = HDR_TYPE::HDR_HDR10;
         m_lastHdr10 = hdr10;
@@ -266,7 +266,7 @@ void CRendererBase::Render(CD3DTexture& target, const CRect& sourceRect, const C
       if (m_HdrType != HDR_TYPE::HDR_HLG)
       {
         // Switch to HLG rendering
-        CLog::LogF(LOGNOTICE, "Switching to HLG rendering");
+        CLog::LogF(LOGINFO, "Switching to HLG rendering");
         DX::Windowing()->SetHdrColorSpace(DXGI_COLOR_SPACE_YCBCR_FULL_GHLG_TOPLEFT_P2020);
         m_HdrType = HDR_TYPE::HDR_HLG;
       }
@@ -277,7 +277,7 @@ void CRendererBase::Render(CD3DTexture& target, const CRect& sourceRect, const C
       if (m_HdrType != HDR_TYPE::HDR_REC2020)
       {
         // Switch to Rec.2020 rendering
-        CLog::LogF(LOGNOTICE, "Switching to Rec.2020 rendering");
+        CLog::LogF(LOGINFO, "Switching to Rec.2020 rendering");
         DX::Windowing()->SetHdrColorSpace(DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P2020);
         m_HdrType = HDR_TYPE::HDR_REC2020;
       }
@@ -290,7 +290,7 @@ void CRendererBase::Render(CD3DTexture& target, const CRect& sourceRect, const C
         if (m_iCntMetaData > 60)
         {
           // If more than 60 frames are received without HDR10 metadata switch to SDR rendering
-          CLog::LogF(LOGNOTICE, "Switching to SDR rendering");
+          CLog::LogF(LOGINFO, "Switching to SDR rendering");
           DX::Windowing()->SetHdrColorSpace(DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709);
           m_HdrType = HDR_TYPE::HDR_NONE_SDR;
           m_iCntMetaData = 0;
@@ -301,7 +301,7 @@ void CRendererBase::Render(CD3DTexture& target, const CRect& sourceRect, const C
       if (m_HdrType == HDR_TYPE::HDR_HLG || m_HdrType == HDR_TYPE::HDR_REC2020)
       {
         // Switch to SDR rendering
-        CLog::LogF(LOGNOTICE, "Switching to SDR rendering");
+        CLog::LogF(LOGINFO, "Switching to SDR rendering");
         DX::Windowing()->SetHdrColorSpace(DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709);
         m_HdrType = HDR_TYPE::HDR_NONE_SDR;
         if (m_AutoSwitchHDR)

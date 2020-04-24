@@ -13,8 +13,10 @@
 #include "AppParamParser.h"
 #include "AppInboundProtocol.h"
 #include "dialogs/GUIDialogBusy.h"
+#include "dialogs/GUIDialogKaiToast.h"
 #include "events/EventLog.h"
 #include "events/NotificationEvent.h"
+#include "HDRStatus.h"
 #include "interfaces/builtins/Builtins.h"
 #include "utils/JobManager.h"
 #include "utils/Variant.h"
@@ -498,6 +500,12 @@ bool CApplication::Create(const CAppParamParser &params)
             (CWIN32Util::IsCurrentUserLocalAdministrator() == TRUE) ? "administrator"
                                                                     : "restricted");
   CLog::Log(LOGINFO, "Aero is %s", (g_sysinfo.IsAeroDisabled() == true) ? "disabled" : "enabled");
+  HDR_STATUS hdrStatus = CWIN32Util::GetWindowsHDRStatus();
+  if (hdrStatus == HDR_STATUS::HDR_UNSUPPORTED)
+    CLog::Log(LOGINFO, "Display is not HDR capable or cannot be detected");
+  else
+    CLog::Log(LOGINFO, "Display HDR capable is detected and Windows HDR switch is %s",
+              (hdrStatus == HDR_STATUS::HDR_ON) ? "ON" : "OFF");
 #endif
 #if defined(TARGET_ANDROID)
   CLog::Log(
@@ -1649,6 +1657,25 @@ bool CApplication::OnAction(const CAction &action)
   if (action.GetID() == ACTION_TAKE_SCREENSHOT)
   {
     CScreenShot::TakeScreenshot();
+    return true;
+  }
+  // Display HDR : toggle HDR on/off
+  if (action.GetID() == ACTION_HDR_TOGGLE)
+  {
+    HDR_STATUS hdrStatus = CServiceBroker::GetWinSystem()->ToggleHDR();
+
+    if (hdrStatus == HDR_STATUS::HDR_OFF)
+    {
+      CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::eMessageType::Info, "HDR is OFF",
+                                            "Display HDR is Off", TOAST_DISPLAY_TIME, true,
+                                            TOAST_DISPLAY_TIME);
+    }
+    else if (hdrStatus == HDR_STATUS::HDR_ON)
+    {
+      CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::eMessageType::Info, "HDR is ON",
+                                            "Display HDR is On", TOAST_DISPLAY_TIME, true,
+                                            TOAST_DISPLAY_TIME);
+    }
     return true;
   }
   // built in functions : execute the built-in

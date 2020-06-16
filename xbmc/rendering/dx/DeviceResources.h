@@ -83,7 +83,6 @@ namespace DX
     void SetHdrMetaData(DXGI_HDR_METADATA_HDR10& hdr10) const;
     void SetHdrColorSpace(const DXGI_COLOR_SPACE_TYPE colorSpace) const;
     bool IsHDROutput() const { return m_IsHDROutput; }
-    bool IsHDRSupported() const { return m_IsHDRSupported; }
 
     // DX resources registration
     void Register(ID3DResource *resource);
@@ -167,6 +166,5 @@ namespace DX
     bool m_stereoEnabled;
     bool m_bDeviceCreated;
     bool m_IsHDROutput;
-    bool m_IsHDRSupported;
   };
 }

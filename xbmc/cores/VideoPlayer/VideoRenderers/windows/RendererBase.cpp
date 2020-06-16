@@ -176,9 +176,9 @@ bool CRendererBase::Configure(const VideoPicture& picture, float fps, unsigned o
   m_lastHdr10 = {};
   m_iCntMetaData = 0;
   m_HdrType = HDR_TYPE::HDR_NONE_SDR;
-  m_AutoSwitchHDR = DX::Windowing()->IsHDRSupported() &&
-                    CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
-                        DX::Windowing()->SETTING_WINSYSTEM_IS_HDR_DISPLAY);
+  m_AutoSwitchHDR = CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
+                        DX::Windowing()->SETTING_WINSYSTEM_IS_HDR_DISPLAY) &&
+                    DX::Windowing()->IsHDRDisplay();
 
   // Auto switch HDR only if supported and "Settings/Player/Use HDR display capabilities" = ON
   if (m_AutoSwitchHDR)

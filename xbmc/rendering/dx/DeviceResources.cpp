@@ -290,8 +290,6 @@ bool DX::DeviceResources::SetFullScreen(bool fullscreen, RESOLUTION_INFO& res)
 // Configures resources that don't depend on the Direct3D device.
 void DX::DeviceResources::CreateDeviceIndependentResources()
 {
-  // Saves HDR suppoprted flag
-  m_IsHDRSupported = (HDR_STATUS::HDR_UNSUPPORTED != CWIN32Util::GetWindowsHDRStatus());
 }
 
 // Configures the Direct3D device, and stores handles to it and the device context.

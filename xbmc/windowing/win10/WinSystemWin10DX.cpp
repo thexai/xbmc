@@ -171,11 +171,6 @@ HDR_STATUS CWinSystemWin10DX::ToggleHDR()
   return m_deviceResources->ToggleHDR();
 }
 
-bool CWinSystemWin10DX::IsHDRSupported() const
-{
-  return m_deviceResources->IsHDRSupported();
-}
-
 bool CWinSystemWin10DX::IsHDROutput() const
 {
   return m_deviceResources->IsHDROutput();

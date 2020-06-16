@@ -69,7 +69,6 @@ public:
   HDR_STATUS GetOSHDRStatus() override;
 
   // HDR support
-  bool IsHDRSupported() const;
   bool IsHDROutput() const;
   void SetHdrMetaData(DXGI_HDR_METADATA_HDR10& hdr10) const;
   void SetHdrColorSpace(const DXGI_COLOR_SPACE_TYPE colorSpace) const;

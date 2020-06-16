@@ -281,6 +281,18 @@ bool CContext::CreateContext()
   ComPtr<ID3D11DeviceContext> pD3DDeviceContext;
   m_sharingAllowed = DX::DeviceResources::Get()->DoesTextureSharingWork();
 
+  // Workaround for Nvidia stuttering on 4K HDR playback
+  // Some tests/feedback on Windows 10 2004 / NV driver 446.14
+  // Not needed: GTX 1650, GTX 1060, ...
+  // Needed: RTX 2080 Ti, ...
+  if (m_sharingAllowed &&
+      CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_disableDXVAdiscreteDecoding)
+  {
+    m_sharingAllowed = false;
+    CLog::LogF(LOGWARNING, "disabled discrete d3d11va device for decoding due advancedsettings "
+                           "option 'disableDXVAdiscretedecoder'.");
+  }
+
   if (m_sharingAllowed)
   {
     CLog::LogF(LOGWARNING, "creating discrete d3d11va device for decoding.");

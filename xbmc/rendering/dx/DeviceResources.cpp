@@ -1059,8 +1059,7 @@ void DX::DeviceResources::CheckNV12SharedTexturesSupport()
       CSysInfo::GetWindowsDeviceFamily() != CSysInfo::Desktop)
     return;
 
-  D3D11_FEATURE_DATA_D3D11_OPTIONS4 op4;
-  op4.ExtendedNV12SharedTextureSupported = FALSE;
+  D3D11_FEATURE_DATA_D3D11_OPTIONS4 op4 = {};
   HRESULT hr = m_d3dDevice->CheckFeatureSupport(D3D11_FEATURE_D3D11_OPTIONS4, &op4, sizeof(op4));
   m_NV12SharedTexturesSupport = SUCCEEDED(hr) && !!op4.ExtendedNV12SharedTextureSupported;
   CLog::LogF(LOGINFO, "extended NV12 shared textures is{}supported",
@@ -1074,7 +1073,7 @@ void DX::DeviceResources::CheckTearingSupport()
 
   ComPtr<IDXGIFactory5> factory;
   HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&factory));
-  BOOL flag = FALSE;
+  BOOL flag = {};
   if (SUCCEEDED(hr))
     hr = factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &flag, sizeof(flag));
   m_allowTearing = SUCCEEDED(hr) && !!flag;

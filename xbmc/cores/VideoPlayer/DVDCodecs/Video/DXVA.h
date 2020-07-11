@@ -69,6 +69,7 @@ protected:
   HANDLE handle = INVALID_HANDLE_VALUE;
   Microsoft::WRL::ComPtr<ID3D11Resource> m_sharedRes;
 };
+
 class CVideoBufferCopy : public CVideoBufferShared
 {
   template<typename TBuffer>
@@ -83,6 +84,7 @@ protected:
       : CVideoBufferShared(id) {}
 
   Microsoft::WRL::ComPtr<ID3D11Resource> m_copyRes;
+  ID3D11Query* m_pQuery;
 };
 
 class CContext

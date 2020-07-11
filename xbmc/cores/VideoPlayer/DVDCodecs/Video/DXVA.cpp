@@ -28,7 +28,7 @@
 #include "utils/log.h"
 
 #include <Windows.h>
-#include <d3d11.h>
+#include <d3d11_4.h>
 #include <dxva.h>
 #include <initguid.h>
 
@@ -279,27 +279,19 @@ bool CContext::CreateContext()
   HRESULT hr = E_FAIL;
   ComPtr<ID3D11Device> pD3DDevice;
   ComPtr<ID3D11DeviceContext> pD3DDeviceContext;
-  m_sharingAllowed = DX::DeviceResources::Get()->DoesTextureSharingWork();
 
-  // Workaround for Nvidia stuttering on 4K HDR playback
-  // Some tests/feedback on Windows 10 2004 / NV driver 446.14
-  // Not needed: GTX 1650, GTX 1060, ...
-  // Needed: RTX 2080 Ti, ...
-  if (m_sharingAllowed &&
-      CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_disableDXVAdiscreteDecoding)
-  {
-    m_sharingAllowed = false;
-    CLog::LogF(LOGWARNING, "disabled discrete d3d11va device for decoding due advancedsettings "
-                           "option 'disableDXVAdiscretedecoder'.");
-  }
+  m_sharingAllowed = DX::DeviceResources::Get()->IsNV12SharedTexturesSupported();
 
   if (m_sharingAllowed)
   {
-    CLog::LogF(LOGWARNING, "creating discrete d3d11va device for decoding.");
+    CLog::LogF(LOGINFO, "creating discrete d3d11va device for decoding.");
 
     std::vector<D3D_FEATURE_LEVEL> featureLevels;
     if (CSysInfo::IsWindowsVersionAtLeast(CSysInfo::WindowsVersionWin10))
+    {
+      featureLevels.push_back(D3D_FEATURE_LEVEL_12_1);
       featureLevels.push_back(D3D_FEATURE_LEVEL_12_0);
+    }
     if (CSysInfo::IsWindowsVersionAtLeast(CSysInfo::WindowsVersionWin8))
       featureLevels.push_back(D3D_FEATURE_LEVEL_11_1);
     featureLevels.push_back(D3D_FEATURE_LEVEL_11_0);
@@ -314,20 +306,16 @@ bool CContext::CreateContext()
                            featureLevels.size(), D3D11_SDK_VERSION, &pD3DDevice, nullptr,
                            &pD3DDeviceContext);
 
-    if (SUCCEEDED(hr))
-    {
-      // enable multi-threaded protection
-      ComPtr<ID3D10Multithread> multithread;
-      hr = pD3DDevice.As(&multithread);
-      if (SUCCEEDED(hr))
-        multithread->SetMultithreadProtected(1);
-    }
-
     if (FAILED(hr))
     {
       CLog::LogF(LOGWARNING, "unable to create device for decoding, fallback to using app device.");
       m_sharingAllowed = false;
     }
+  }
+  else
+  {
+    CLog::LogF(LOGWARNING, "using app d3d11 device for decoding due extended NV12 shared "
+                           "textures it's not supported.");
   }
 
   if (FAILED(hr))
@@ -340,6 +328,15 @@ bool CContext::CreateContext()
   {
     CLog::LogF(LOGWARNING, "failed to get Video Device and Context.");
     return false;
+  }
+
+  if (FAILED(hr) || !m_sharingAllowed)
+  {
+    // enable multi-threaded protection only if is used same d3d11 device for rendering and decoding
+    ComPtr<ID3D11Multithread> multithread;
+    hr = pD3DDevice.As(&multithread);
+    if (SUCCEEDED(hr))
+      multithread->SetMultithreadProtected(1);
   }
 
   QueryCaps();
@@ -767,6 +764,7 @@ void CVideoBufferCopy::Initialize(CDecoder* decoder)
     ComPtr<ID3D11Texture2D> pDecoderTexture;
     ComPtr<ID3D11Texture2D> pCopyTexture;
     ComPtr<IDXGIResource> pDXGIResource;
+    ComPtr<ID3D11Query> pQuery;
 
     if (FAILED(pResource.As(&pDecoderTexture)))
     {
@@ -800,15 +798,40 @@ void CVideoBufferCopy::Initialize(CDecoder* decoder)
 
     handle = shared_handle;
     pCopyTexture.As(&m_copyRes);
+
+    D3D11_QUERY_DESC queryDesc = {};
+    queryDesc.Query = D3D11_QUERY_EVENT;
+
+    if (FAILED(pDevice->CreateQuery(&queryDesc, &pQuery)))
+    {
+      CLog::LogF(LOGDEBUG, "unable to create query");
+      return;
+    }
+
+    pQuery.As(&m_pQuery);
   }
 
   if (m_copyRes)
   {
+    // sends commands to GPU and wait Flush is completed
+    pDeviceContext->Flush();
+    pDeviceContext->End(m_pQuery.Get());
+    while (S_OK != pDeviceContext->GetData(m_pQuery.Get(), nullptr, 0, 0))
+    {
+      std::this_thread::sleep_for(std::chrono::nanoseconds(500));
+    }
+
     // copy decoder surface on decoder device
     pDeviceContext->CopySubresourceRegion(m_copyRes.Get(), 0, 0, 0, 0, pResource.Get(),
                                           CVideoBuffer::GetIdx(), nullptr);
-    // sends commands to GPU
+
+    // sends commands to GPU and wait Flush is completed
     pDeviceContext->Flush();
+    pDeviceContext->End(m_pQuery.Get());
+    while (S_OK != pDeviceContext->GetData(m_pQuery.Get(), nullptr, 0, 0))
+    {
+      std::this_thread::sleep_for(std::chrono::nanoseconds(500));
+    }
   }
 }
 
@@ -1180,10 +1203,11 @@ bool CDecoder::Open(AVCodecContext* avctx, AVCodecContext* mainctx, enum AVPixel
       // a driver may use multi-thread decoding internally
       m_refs += CServiceBroker::GetCPUInfo()->GetCPUCount();
     }
-    else
-      m_refs += CServiceBroker::GetCPUInfo()->GetCPUCount() / 2;
+
     // by specification hevc decoder can hold up to 8 unique refs
-    m_refs += avctx->refs ? avctx->refs : 8;
+    /* For some reason avctx->refs returns always 1 ref frame (tested
+       with well known 3 refs frames encodes) */
+    m_refs += (avctx->refs > 1) ? avctx->refs : 8;
     break;
   case AV_CODEC_ID_H264:
     // by specification h264 decoder can hold up to 16 unique refs

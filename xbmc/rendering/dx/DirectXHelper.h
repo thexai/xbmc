@@ -13,7 +13,7 @@
 
 #include "platform/win32/CharsetConverter.h"
 
-#include <d3d11_1.h>
+#include <d3d11_4.h>
 #include <ppltasks.h> // For create_task
 
 namespace DX
@@ -84,6 +84,46 @@ namespace DX
     DXGetErrorDescriptionW(hr, buff, 2048);
 
     return FromW(StringUtils::Format(L"%X - %s (%s)", hr, DXGetErrorStringW(hr), buff));
+  }
+
+  inline std::string GetFeatureLevelDescription(D3D_FEATURE_LEVEL featureLevel)
+  {
+    std::string fl;
+
+    switch (featureLevel)
+    {
+      case D3D_FEATURE_LEVEL_9_1:
+        fl = "D3D_FEATURE_LEVEL_9_1";
+        break;
+      case D3D_FEATURE_LEVEL_9_2:
+        fl = "D3D_FEATURE_LEVEL_9_2";
+        break;
+      case D3D_FEATURE_LEVEL_9_3:
+        fl = "D3D_FEATURE_LEVEL_9_3";
+        break;
+      case D3D_FEATURE_LEVEL_10_0:
+        fl = "D3D_FEATURE_LEVEL_10_0";
+        break;
+      case D3D_FEATURE_LEVEL_10_1:
+        fl = "D3D_FEATURE_LEVEL_10_1";
+        break;
+      case D3D_FEATURE_LEVEL_11_0:
+        fl = "D3D_FEATURE_LEVEL_11_0";
+        break;
+      case D3D_FEATURE_LEVEL_11_1:
+        fl = "D3D_FEATURE_LEVEL_11_1";
+        break;
+      case D3D_FEATURE_LEVEL_12_0:
+        fl = "D3D_FEATURE_LEVEL_12_0";
+        break;
+      case D3D_FEATURE_LEVEL_12_1:
+        fl = "D3D_FEATURE_LEVEL_12_1";
+        break;
+      default:
+        fl = StringUtils::Format("D3D_FEATURE_LEVEL_UNKNOWN ({:#04x})", featureLevel);
+        break;
+    }
+    return fl;
   }
 
   template <typename T> struct SizeGen

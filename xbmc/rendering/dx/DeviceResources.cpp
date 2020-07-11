@@ -314,7 +314,10 @@ void DX::DeviceResources::CreateDeviceResources()
   // description.  All applications are assumed to support 9.1 unless otherwise stated.
   std::vector<D3D_FEATURE_LEVEL> featureLevels;
   if (CSysInfo::IsWindowsVersionAtLeast(CSysInfo::WindowsVersionWin10))
+  {
+    featureLevels.push_back(D3D_FEATURE_LEVEL_12_1);
     featureLevels.push_back(D3D_FEATURE_LEVEL_12_0);
+  }
   if (CSysInfo::IsWindowsVersionAtLeast(CSysInfo::WindowsVersionWin8))
     featureLevels.push_back(D3D_FEATURE_LEVEL_11_1);
   featureLevels.push_back(D3D_FEATURE_LEVEL_11_0);
@@ -368,9 +371,13 @@ void DX::DeviceResources::CreateDeviceResources()
   hr = device.As(&m_d3dDevice); CHECK_ERR();
 
   // To enable multi-threaded access (optional)
-  ComPtr<ID3D10Multithread> d3dMultiThread;
+  ComPtr<ID3D11Multithread> d3dMultiThread;
   hr = m_d3dDevice.As(&d3dMultiThread); CHECK_ERR();
   d3dMultiThread->SetMultithreadProtected(1);
+
+  // Check extended features support
+  CheckNV12SharedTexturesSupport();
+  CheckTearingSupport();
 
 #ifdef _DEBUG
   if (SUCCEEDED(m_d3dDevice.As(&m_d3dDebug)))
@@ -409,8 +416,9 @@ void DX::DeviceResources::CreateDeviceResources()
   DXGI_ADAPTER_DESC aDesc;
   m_adapter->GetDesc(&aDesc);
 
-  CLog::LogF(LOGDEBUG, "device is created on adapter '%s' with feature level %04x.",
-             KODI::PLATFORM::WINDOWS::FromW(aDesc.Description), m_d3dFeatureLevel);
+  CLog::LogF(LOGINFO, "device is created on adapter '{}' with {}",
+             KODI::PLATFORM::WINDOWS::FromW(aDesc.Description),
+             GetFeatureLevelDescription(m_d3dFeatureLevel));
 
   m_bDeviceCreated = true;
 }
@@ -558,13 +566,12 @@ void DX::DeviceResources::ResizeBuffers()
     m_swapChain->GetDesc1(&scDesc);
     isHdrEnabled ? scDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM
                  : scDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-    hr = m_swapChain->ResizeBuffers(
-      scDesc.BufferCount,
-      lround(m_outputSize.Width),
-      lround(m_outputSize.Height),
-      scDesc.Format,
-      windowed ? 0 : DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH
-    );
+
+    UINT flags = (windowed ? 0 : DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH) |
+                 (m_allowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0);
+
+    hr = m_swapChain->ResizeBuffers(scDesc.BufferCount, lround(m_outputSize.Width),
+                                    lround(m_outputSize.Height), scDesc.Format, flags);
 
     if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
     {
@@ -586,13 +593,15 @@ void DX::DeviceResources::ResizeBuffers()
     swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
     swapChainDesc.Stereo = bHWStereoEnabled;
     swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    // HDR 60 fps needs 6 buffers to avoid frame drops but in Windows 10 it's good for all
-    swapChainDesc.BufferCount =
-        (m_d3dFeatureLevel >= D3D_FEATURE_LEVEL_12_0) ? 6 : 3 * (1 + bHWStereoEnabled);
+    // HDR 60 fps needs 6 buffers to avoid frame drops but it's good for all
+    swapChainDesc.BufferCount = 6;
     swapChainDesc.SwapEffect = (m_d3dFeatureLevel >= D3D_FEATURE_LEVEL_12_0)
                                    ? DXGI_SWAP_EFFECT_FLIP_DISCARD
                                    : DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
-    swapChainDesc.Flags = windowed ? 0 : DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+
+    swapChainDesc.Flags = (windowed ? 0 : DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH) |
+                          (m_allowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0);
+
     swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
     swapChainDesc.SampleDesc.Count = 1;
     swapChainDesc.SampleDesc.Quality = 0;
@@ -612,7 +621,6 @@ void DX::DeviceResources::ResizeBuffers()
       {
         CLog::LogF(LOGWARNING, "creating 10bit swapchain failed, fallback to 8bit.");
         swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-        swapChainDesc.BufferCount = 3 * (1 + bHWStereoEnabled);
       }
     }
 
@@ -1045,23 +1053,32 @@ bool DX::DeviceResources::IsStereoAvailable() const
   return false;
 }
 
-bool DX::DeviceResources::DoesTextureSharingWork()
+void DX::DeviceResources::CheckNV12SharedTexturesSupport()
 {
-  if (m_d3dFeatureLevel < D3D_FEATURE_LEVEL_10_0 ||
-    CSysInfo::GetWindowsDeviceFamily() != CSysInfo::Desktop)
-    return false;
+  if (m_d3dFeatureLevel < D3D_FEATURE_LEVEL_11_1 ||
+      CSysInfo::GetWindowsDeviceFamily() != CSysInfo::Desktop)
+    return;
 
-  if (!CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_allowUseSeparateDeviceForDecoding)
-  {
-    D3D11_FEATURE_DATA_D3D11_OPTIONS options;
-    if (SUCCEEDED(m_d3dDevice->CheckFeatureSupport(D3D11_FEATURE_D3D11_OPTIONS, &options, sizeof(options))))
-    {
-      CLog::LogF(LOGDEBUG, "extended sharing resource is{}supported", !!options.ExtendedResourceSharing ? " " : " not ");
-      return !!options.ExtendedResourceSharing;
-    }
-    return false;
-  }
-  return true;
+  D3D11_FEATURE_DATA_D3D11_OPTIONS4 op4;
+  op4.ExtendedNV12SharedTextureSupported = FALSE;
+  HRESULT hr = m_d3dDevice->CheckFeatureSupport(D3D11_FEATURE_D3D11_OPTIONS4, &op4, sizeof(op4));
+  m_NV12SharedTexturesSupport = SUCCEEDED(hr) && !!op4.ExtendedNV12SharedTextureSupported;
+  CLog::LogF(LOGINFO, "extended NV12 shared textures is{}supported",
+             !!m_NV12SharedTexturesSupport ? " " : " NOT ");
+}
+
+void DX::DeviceResources::CheckTearingSupport()
+{
+  if (m_d3dFeatureLevel < D3D_FEATURE_LEVEL_11_1)
+    return;
+
+  ComPtr<IDXGIFactory5> factory;
+  HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&factory));
+  BOOL flag = FALSE;
+  if (SUCCEEDED(hr))
+    hr = factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &flag, sizeof(flag));
+  m_allowTearing = SUCCEEDED(hr) && !!flag;
+  CLog::LogF(LOGINFO, "feature allow tearing is{}supported", !!m_allowTearing ? " " : " NOT ");
 }
 
 #if defined(TARGET_WINDOWS_DESKTOP)

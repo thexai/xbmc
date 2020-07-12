@@ -1198,7 +1198,11 @@ bool CDecoder::Open(AVCodecContext* avctx, AVCodecContext* mainctx, enum AVPixel
     /* the HEVC DXVA2 spec asks for 128 pixel aligned surfaces to ensure
        all coding features have enough room to work with */
     if (CSysInfo::GetWindowsDeviceFamily() != CSysInfo::Xbox)
+    {
       m_surface_alignment = 128;
+      // a driver may use multi-thread decoding internally
+      m_refs += CServiceBroker::GetCPUInfo()->GetCPUCount();
+    }
 
     // by specification hevc decoder can hold up to 8 unique refs
     /* For some reason avctx->refs returns always 1 ref frame (tested

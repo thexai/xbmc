@@ -306,15 +306,6 @@ bool CContext::CreateContext()
                            featureLevels.size(), D3D11_SDK_VERSION, &pD3DDevice, nullptr,
                            &pD3DDeviceContext);
 
-    if (SUCCEEDED(hr))
-    {
-      // enable multi-threaded protection
-      ComPtr<ID3D11Multithread> multithread;
-      hr = pD3DDevice.As(&multithread);
-      if (SUCCEEDED(hr))
-        multithread->SetMultithreadProtected(1);
-    }
-
     if (FAILED(hr))
     {
       CLog::LogF(LOGWARNING, "unable to create device for decoding, fallback to using app device.");
@@ -337,6 +328,15 @@ bool CContext::CreateContext()
   {
     CLog::LogF(LOGWARNING, "failed to get Video Device and Context.");
     return false;
+  }
+
+  if (FAILED(hr) || !m_sharingAllowed)
+  {
+    // enable multi-threaded protection only if is used same d3d11 device for rendering and decoding
+    ComPtr<ID3D11Multithread> multithread;
+    hr = pD3DDevice.As(&multithread);
+    if (SUCCEEDED(hr))
+      multithread->SetMultithreadProtected(1);
   }
 
   QueryCaps();

@@ -370,14 +370,8 @@ void DX::DeviceResources::CreateDeviceResources()
   // Store pointers to the Direct3D 11.1 API device and immediate context.
   hr = device.As(&m_d3dDevice); CHECK_ERR();
 
-  // To enable multi-threaded access (optional)
-  ComPtr<ID3D11Multithread> d3dMultiThread;
-  hr = m_d3dDevice.As(&d3dMultiThread); CHECK_ERR();
-  d3dMultiThread->SetMultithreadProtected(1);
-
-  // Check extended features support
+  // Check shared textures support
   CheckNV12SharedTexturesSupport();
-  CheckTearingSupport();
 
 #ifdef _DEBUG
   if (SUCCEEDED(m_d3dDevice.As(&m_d3dDebug)))
@@ -566,12 +560,9 @@ void DX::DeviceResources::ResizeBuffers()
     m_swapChain->GetDesc1(&scDesc);
     isHdrEnabled ? scDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM
                  : scDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-
-    UINT flags = (windowed ? 0 : DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH) |
-                 (m_allowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0);
-
     hr = m_swapChain->ResizeBuffers(scDesc.BufferCount, lround(m_outputSize.Width),
-                                    lround(m_outputSize.Height), scDesc.Format, flags);
+                                    lround(m_outputSize.Height), scDesc.Format,
+                                    windowed ? 0 : DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH);
 
     if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
     {
@@ -598,10 +589,7 @@ void DX::DeviceResources::ResizeBuffers()
     swapChainDesc.SwapEffect = (m_d3dFeatureLevel >= D3D_FEATURE_LEVEL_12_0)
                                    ? DXGI_SWAP_EFFECT_FLIP_DISCARD
                                    : DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
-
-    swapChainDesc.Flags = (windowed ? 0 : DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH) |
-                          (m_allowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0);
-
+    swapChainDesc.Flags = windowed ? 0 : DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
     swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
     swapChainDesc.SampleDesc.Count = 1;
     swapChainDesc.SampleDesc.Quality = 0;
@@ -1064,20 +1052,6 @@ void DX::DeviceResources::CheckNV12SharedTexturesSupport()
   m_NV12SharedTexturesSupport = SUCCEEDED(hr) && !!op4.ExtendedNV12SharedTextureSupported;
   CLog::LogF(LOGINFO, "extended NV12 shared textures is{}supported",
              !!m_NV12SharedTexturesSupport ? " " : " NOT ");
-}
-
-void DX::DeviceResources::CheckTearingSupport()
-{
-  if (m_d3dFeatureLevel < D3D_FEATURE_LEVEL_11_1)
-    return;
-
-  ComPtr<IDXGIFactory5> factory;
-  HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&factory));
-  BOOL flag = {};
-  if (SUCCEEDED(hr))
-    hr = factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &flag, sizeof(flag));
-  m_allowTearing = SUCCEEDED(hr) && !!flag;
-  CLog::LogF(LOGINFO, "feature allow tearing is{}supported", !!m_allowTearing ? " " : " NOT ");
 }
 
 #if defined(TARGET_WINDOWS_DESKTOP)

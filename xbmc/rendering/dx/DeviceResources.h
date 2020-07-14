@@ -126,7 +126,6 @@ namespace DX
     void OnDeviceRestored();
     void HandleOutputChange(const std::function<bool(DXGI_OUTPUT_DESC)>& cmpFunc);
     bool CreateFactory();
-    void CheckTearingSupport();
     void CheckNV12SharedTexturesSupport();
 
     HWND m_window{ nullptr };
@@ -168,7 +167,6 @@ namespace DX
     bool m_stereoEnabled;
     bool m_bDeviceCreated;
     bool m_IsHDROutput;
-    bool m_allowTearing{false};
     bool m_NV12SharedTexturesSupport{false};
   };
 }

@@ -764,6 +764,7 @@ void CVideoBufferCopy::Initialize(CDecoder* decoder)
     ComPtr<ID3D11Texture2D> pDecoderTexture;
     ComPtr<ID3D11Texture2D> pCopyTexture;
     ComPtr<IDXGIResource> pDXGIResource;
+    ComPtr<ID3D11Query> pQuery;
 
     if (FAILED(pResource.As(&pDecoderTexture)))
     {
@@ -800,7 +801,6 @@ void CVideoBufferCopy::Initialize(CDecoder* decoder)
 
     D3D11_QUERY_DESC queryDesc = {};
     queryDesc.Query = D3D11_QUERY_EVENT;
-    ID3D11Query* pQuery;
 
     if (FAILED(pDevice->CreateQuery(&queryDesc, &pQuery)))
     {
@@ -808,15 +808,15 @@ void CVideoBufferCopy::Initialize(CDecoder* decoder)
       return;
     }
 
-    m_pQuery = pQuery;
+    pQuery.As(&m_pQuery);
   }
 
   if (m_copyRes)
   {
     // sends commands to GPU and wait Flush is completed
     pDeviceContext->Flush();
-    pDeviceContext->End(m_pQuery);
-    while (S_OK != pDeviceContext->GetData(m_pQuery, nullptr, 0, 0))
+    pDeviceContext->End(m_pQuery.Get());
+    while (S_OK != pDeviceContext->GetData(m_pQuery.Get(), nullptr, 0, 0))
     {
       std::this_thread::sleep_for(std::chrono::nanoseconds(500));
     }
@@ -827,8 +827,8 @@ void CVideoBufferCopy::Initialize(CDecoder* decoder)
 
     // sends commands to GPU and wait Flush is completed
     pDeviceContext->Flush();
-    pDeviceContext->End(m_pQuery);
-    while (S_OK != pDeviceContext->GetData(m_pQuery, nullptr, 0, 0))
+    pDeviceContext->End(m_pQuery.Get());
+    while (S_OK != pDeviceContext->GetData(m_pQuery.Get(), nullptr, 0, 0))
     {
       std::this_thread::sleep_for(std::chrono::nanoseconds(500));
     }

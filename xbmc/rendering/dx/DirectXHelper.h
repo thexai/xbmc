@@ -88,42 +88,10 @@ namespace DX
 
   inline std::string GetFeatureLevelDescription(D3D_FEATURE_LEVEL featureLevel)
   {
-    std::string fl;
+    uint32_t fl_major = (featureLevel & 0xF000u) >> 12;
+    uint32_t fl_minor = (featureLevel & 0x0F00u) >> 8;
 
-    switch (featureLevel)
-    {
-      case D3D_FEATURE_LEVEL_9_1:
-        fl = "D3D_FEATURE_LEVEL_9_1";
-        break;
-      case D3D_FEATURE_LEVEL_9_2:
-        fl = "D3D_FEATURE_LEVEL_9_2";
-        break;
-      case D3D_FEATURE_LEVEL_9_3:
-        fl = "D3D_FEATURE_LEVEL_9_3";
-        break;
-      case D3D_FEATURE_LEVEL_10_0:
-        fl = "D3D_FEATURE_LEVEL_10_0";
-        break;
-      case D3D_FEATURE_LEVEL_10_1:
-        fl = "D3D_FEATURE_LEVEL_10_1";
-        break;
-      case D3D_FEATURE_LEVEL_11_0:
-        fl = "D3D_FEATURE_LEVEL_11_0";
-        break;
-      case D3D_FEATURE_LEVEL_11_1:
-        fl = "D3D_FEATURE_LEVEL_11_1";
-        break;
-      case D3D_FEATURE_LEVEL_12_0:
-        fl = "D3D_FEATURE_LEVEL_12_0";
-        break;
-      case D3D_FEATURE_LEVEL_12_1:
-        fl = "D3D_FEATURE_LEVEL_12_1";
-        break;
-      default:
-        fl = StringUtils::Format("D3D_FEATURE_LEVEL_UNKNOWN ({:#04x})", featureLevel);
-        break;
-    }
-    return fl;
+    return StringUtils::Format("D3D_FEATURE_LEVEL_{}_{}", fl_major, fl_minor);
   }
 
   template <typename T> struct SizeGen

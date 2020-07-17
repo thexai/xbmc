@@ -503,8 +503,9 @@ bool CContext::GetConfig(const D3D11_VIDEO_DECODER_DESC &format, D3D11_VIDEO_DEC
   return true;
 }
 
-bool CContext::CreateSurfaces(const D3D11_VIDEO_DECODER_DESC &format, uint32_t count, uint32_t alignment,
-                              ID3D11VideoDecoderOutputView** surfaces, HANDLE* pHandle) const
+bool CContext::CreateSurfaces(const D3D11_VIDEO_DECODER_DESC& format, uint32_t count,
+                              uint32_t alignment, ID3D11VideoDecoderOutputView** surfaces,
+                              HANDLE* pHandle, bool trueShared) const
 {
   HRESULT hr = S_OK;
   ComPtr<ID3D11Device> pD3DDevice;
@@ -525,7 +526,7 @@ bool CContext::CreateSurfaces(const D3D11_VIDEO_DECODER_DESC &format, uint32_t c
   {
     texDesc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
   }
-  if (m_sharingAllowed)
+  if (trueShared)
   {
     texDesc.MiscFlags |= D3D11_RESOURCE_MISC_SHARED;
   }
@@ -540,7 +541,7 @@ bool CContext::CreateSurfaces(const D3D11_VIDEO_DECODER_DESC &format, uint32_t c
   }
 
   // acquire shared handle once
-  if (m_sharingAllowed && pHandle)
+  if (trueShared && pHandle)
   {
     ComPtr<IDXGIResource> dxgiResource;
     if (FAILED(texture.As(&dxgiResource)) || FAILED(dxgiResource->GetSharedHandle(pHandle)))
@@ -738,33 +739,32 @@ HRESULT CVideoBufferShared::GetResource(ID3D11Resource** ppResource)
 void CVideoBufferShared::Initialize(CDecoder* decoder)
 {
   CVideoBuffer::Initialize(decoder);
-  handle = decoder->m_sharedHandle;
+
+  if (handle == INVALID_HANDLE_VALUE)
+    handle = decoder->m_sharedHandle;
 }
 
 void CVideoBufferCopy::Initialize(CDecoder* decoder)
 {
   CVideoBuffer::Initialize(decoder);
 
-  ComPtr<ID3D11Resource> pResource;
-  ComPtr<ID3D11Device> pDevice;
-  ComPtr<ID3D11DeviceContext> pDeviceContext;
-
-  if (FAILED(CVideoBuffer::GetResource(&pResource)))
-  {
-    CLog::LogF(LOGDEBUG, "unable to get decoder resource");
-    return;
-  }
-
-  // decoder ctx
-  decoder->m_pD3D11Context->GetDevice(&pDevice);
-  pDevice->GetImmediateContext(&pDeviceContext);
-
   if (!m_copyRes)
   {
+    ComPtr<ID3D11Device> pDevice;
+    ComPtr<ID3D11DeviceContext> pDeviceContext;
     ComPtr<ID3D11Texture2D> pDecoderTexture;
     ComPtr<ID3D11Texture2D> pCopyTexture;
     ComPtr<IDXGIResource> pDXGIResource;
-    ComPtr<ID3D11Query> pQuery;
+    ComPtr<ID3D11Resource> pResource;
+
+    decoder->m_pD3D11Context->GetDevice(&pDevice);
+    pDevice->GetImmediateContext(&pDeviceContext);
+
+    if (FAILED(CVideoBuffer::GetResource(&pResource)))
+    {
+      CLog::LogF(LOGDEBUG, "unable to get decoder resource");
+      return;
+    }
 
     if (FAILED(pResource.As(&pDecoderTexture)))
     {
@@ -798,40 +798,18 @@ void CVideoBufferCopy::Initialize(CDecoder* decoder)
 
     handle = shared_handle;
     pCopyTexture.As(&m_copyRes);
-
-    D3D11_QUERY_DESC queryDesc = {};
-    queryDesc.Query = D3D11_QUERY_EVENT;
-
-    if (FAILED(pDevice->CreateQuery(&queryDesc, &pQuery)))
-    {
-      CLog::LogF(LOGDEBUG, "unable to create query");
-      return;
-    }
-
-    pQuery.As(&m_pQuery);
+    pResource.As(&m_pResource);
+    pDeviceContext.As(&m_pDeviceContext);
   }
 
   if (m_copyRes)
   {
-    // sends commands to GPU and wait Flush is completed
-    pDeviceContext->Flush();
-    pDeviceContext->End(m_pQuery.Get());
-    while (S_OK != pDeviceContext->GetData(m_pQuery.Get(), nullptr, 0, 0))
-    {
-      std::this_thread::sleep_for(std::chrono::nanoseconds(500));
-    }
+    // sends commands to GPU (ensures that the last decoded image is ready)
+    m_pDeviceContext->Flush();
 
     // copy decoder surface on decoder device
-    pDeviceContext->CopySubresourceRegion(m_copyRes.Get(), 0, 0, 0, 0, pResource.Get(),
-                                          CVideoBuffer::GetIdx(), nullptr);
-
-    // sends commands to GPU and wait Flush is completed
-    pDeviceContext->Flush();
-    pDeviceContext->End(m_pQuery.Get());
-    while (S_OK != pDeviceContext->GetData(m_pQuery.Get(), nullptr, 0, 0))
-    {
-      std::this_thread::sleep_for(std::chrono::nanoseconds(500));
-    }
+    m_pDeviceContext->CopySubresourceRegion(m_copyRes.Get(), 0, 0, 0, 0, m_pResource.Get(),
+                                            CVideoBuffer::GetIdx(), nullptr);
   }
 }
 
@@ -1436,8 +1414,14 @@ bool CDecoder::OpenDecoder()
   m_avD3D11Context->video_context = nullptr;
   m_avD3D11Context->surface_count = m_refs;
 
+  DXGI_ADAPTER_DESC AIdentifier = {};
+  DX::DeviceResources::Get()->GetAdapterDesc(&AIdentifier);
+
+  // use true shared buffers on Intel
+  bool trueShared = m_dxvaContext->IsContextShared() && AIdentifier.VendorId == PCIV_Intel;
+
   if (!m_dxvaContext->CreateSurfaces(m_format, m_avD3D11Context->surface_count, m_surface_alignment,
-                                      m_avD3D11Context->surface, &m_sharedHandle))
+                                     m_avD3D11Context->surface, &m_sharedHandle, trueShared))
     return false;
 
   if (!m_dxvaContext->CreateDecoder(m_format, *m_avD3D11Context->cfg, m_pD3D11Decoder.GetAddressOf(),
@@ -1446,11 +1430,7 @@ bool CDecoder::OpenDecoder()
 
   if (m_dxvaContext->IsContextShared())
   {
-    DXGI_ADAPTER_DESC AIdentifier = {};
-    DX::DeviceResources::Get()->GetAdapterDesc(&AIdentifier);
-
-    // use true shared buffers on Intel
-    if (AIdentifier.VendorId == PCIV_Intel) //std::reinterpret_pointer_cast<CVideoBufferPool<CVideoBuffer>>(
+    if (trueShared)
       m_bufferPool = std::make_shared<CVideoBufferPoolTyped<CVideoBufferShared>>();
     else
       m_bufferPool = std::make_shared<CVideoBufferPoolTyped<CVideoBufferCopy>>();

@@ -127,6 +127,7 @@ namespace DX
     void HandleOutputChange(const std::function<bool(DXGI_OUTPUT_DESC)>& cmpFunc);
     bool CreateFactory();
     void CheckNV12SharedTexturesSupport();
+    bool IsMultipleMonitors() const;
 
     HWND m_window{ nullptr };
 #if defined(TARGET_WINDOWS_STORE)

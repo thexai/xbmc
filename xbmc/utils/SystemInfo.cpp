@@ -508,9 +508,17 @@ std::string CSysInfo::GetKernelVersionFull(void)
     return kernelVersionFull;
 
 #if defined(TARGET_WINDOWS_DESKTOP)
-  OSVERSIONINFOEXW osvi;
+  OSVERSIONINFOEXW osvi = {};
+  DWORD buildRevision = 0;
+  DWORD len = sizeof(DWORD);
+
+  // get UBR (updates build revision)
+  RegGetValueW(HKEY_LOCAL_MACHINE, L"Software\\Microsoft\\Windows NT\\CurrentVersion", L"UBR",
+               RRF_RT_REG_DWORD, nullptr, &buildRevision, &len);
+
   if (sysGetVersionExWByRef(osvi))
-    kernelVersionFull = StringUtils::Format("%d.%d.%d", osvi.dwMajorVersion, osvi.dwMinorVersion, osvi.dwBuildNumber);
+    kernelVersionFull = StringUtils::Format("%d.%d.%d.%d", osvi.dwMajorVersion, osvi.dwMinorVersion,
+                                            osvi.dwBuildNumber, buildRevision);
 #elif  defined(TARGET_WINDOWS_STORE)
   // get the system version number
   auto sv = AnalyticsInfo::VersionInfo().DeviceFamilyVersion();
@@ -519,7 +527,8 @@ std::string CSysInfo::GetKernelVersionFull(void)
   unsigned long long v1 = (v & 0xFFFF000000000000L) >> 48;
   unsigned long long v2 = (v & 0x0000FFFF00000000L) >> 32;
   unsigned long long v3 = (v & 0x00000000FFFF0000L) >> 16;
-  kernelVersionFull = StringUtils::Format("%lld.%lld.%lld", v1, v2, v3);
+  unsigned long long v4 = (v & 0x000000000000FFFFL);
+  kernelVersionFull = StringUtils::Format("%lld.%lld.%lld.%lld", v1, v2, v3, v4);
 
 #elif defined(TARGET_POSIX)
   struct utsname un;

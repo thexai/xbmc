@@ -178,7 +178,8 @@ void CGUIDialogVideoSettings::OnSettingChanged(const std::shared_ptr<const CSett
   else if (settingId == SETTING_VIDEO_TONEMAP_PARAM)
   {
     CVideoSettings vs = g_application.GetAppPlayer().GetVideoSettings();
-    vs.m_ToneMapParam = static_cast<float>(std::static_pointer_cast<const CSettingNumber>(setting)->GetValue());
+    float val = static_cast<float>(std::static_pointer_cast<const CSettingNumber>(setting)->GetValue());
+    vs.m_ToneMapParam = std::roundf(val * 100) / 100; // round to 2 decimal places
     g_application.GetAppPlayer().SetVideoSettings(vs);
   }
   else if (settingId == SETTING_VIDEO_ORIENTATION)

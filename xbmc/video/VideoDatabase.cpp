@@ -4462,19 +4462,12 @@ bool CVideoDatabase::GetVideoSettings(int idFile, CVideoSettings &settings)
       settings.m_ScalingMethod = (ESCALINGMETHOD)m_pDS->fv("ScalingMethod").get_asInt();
       settings.m_StereoMode = m_pDS->fv("StereoMode").get_asInt();
       settings.m_StereoInvert = m_pDS->fv("StereoInvert").get_asBool();
-      settings.m_SubtitleCached = false;
       settings.m_VideoStream = m_pDS->fv("VideoStream").get_asInt();
       settings.m_ToneMapMethod = m_pDS->fv("TonemapMethod").get_asInt();
       settings.m_ToneMapParam = m_pDS->fv("TonemapParam").get_asFloat();
       settings.m_Orientation = m_pDS->fv("Orientation").get_asInt();
       settings.m_CenterMixLevel = m_pDS->fv("CenterMixLevel").get_asInt();
       m_pDS->close();
-
-      if (settings.m_ToneMapParam == 0.0)
-      {
-        settings.m_ToneMapMethod = VS_TONEMAPMETHOD_REINHARD;
-        settings.m_ToneMapParam = 1.0;
-      }
       return true;
     }
     m_pDS->close();

@@ -90,8 +90,8 @@ public:
   bool operator!=(const CVideoSettings &right) const;
 
   EINTERLACEMETHOD m_InterlaceMethod;
-  ESCALINGMETHOD   m_ScalingMethod;
-  int m_ViewMode;   // current view mode
+  ESCALINGMETHOD m_ScalingMethod;
+  int m_ViewMode; // current view mode
   float m_CustomZoomAmount; // custom setting zoom amount
   float m_CustomPixelRatio; // custom setting pixel ratio
   float m_CustomVerticalShift; // custom setting vertical shift
@@ -101,7 +101,6 @@ public:
   int m_SubtitleStream;
   float m_SubtitleDelay;
   bool m_SubtitleOn;
-  bool m_SubtitleCached; // not used -> remove from DB
   float m_Brightness;
   float m_Contrast;
   float m_Gamma;
@@ -113,10 +112,10 @@ public:
   int m_StereoMode;
   bool m_StereoInvert;
   int m_VideoStream;
-  int m_ToneMapMethod = VS_TONEMAPMETHOD_REINHARD;
-  float m_ToneMapParam = 1.0;
-  int m_Orientation = 0;
-  int m_CenterMixLevel = 0; // relative to metadata or default
+  int m_ToneMapMethod;
+  float m_ToneMapParam;
+  int m_Orientation;
+  int m_CenterMixLevel; // relative to metadata or default
 };
 
 class CCriticalSection;

@@ -81,6 +81,7 @@ DX::DeviceResources::DeviceResources()
   , m_stereoEnabled(false)
   , m_bDeviceCreated(false)
   , m_IsHDROutput(false)
+  , m_IsTransferPQ(false)
 {
 }
 
@@ -1164,7 +1165,7 @@ void DX::DeviceResources::SetHdrMetaData(DXGI_HDR_METADATA_HDR10& hdr10) const
   }
 }
 
-void DX::DeviceResources::SetHdrColorSpace(const DXGI_COLOR_SPACE_TYPE colorSpace) const
+void DX::DeviceResources::SetHdrColorSpace(const DXGI_COLOR_SPACE_TYPE colorSpace)
 {
   ComPtr<IDXGISwapChain3> swapChain3;
 
@@ -1188,6 +1189,15 @@ void DX::DeviceResources::SetHdrColorSpace(const DXGI_COLOR_SPACE_TYPE colorSpac
     }
     if (SUCCEEDED(swapChain3->SetColorSpace1(cs)))
     {
+      if (cs == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 ||
+          cs == DXGI_COLOR_SPACE_RGB_STUDIO_G2084_NONE_P2020)
+      {
+        m_IsTransferPQ = true;
+      }
+      else
+      {
+        m_IsTransferPQ = false;
+      }
       CLog::LogF(LOGDEBUG, "DXGI SetColorSpace1 success");
     }
     else

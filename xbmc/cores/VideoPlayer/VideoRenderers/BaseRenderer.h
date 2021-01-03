@@ -92,6 +92,13 @@ public:
 
   void SetVideoSettings(const CVideoSettings &settings);
 
+  // Get debug info from render buffer
+  virtual void GetDebugInfo(int idx,
+                            std::string& format,
+                            std::string& meta_prim,
+                            std::string& meta_light,
+                            std::string& shader) = 0;
+
 protected:
   void CalcNormalRenderRect(float offsetX, float offsetY, float width, float height,
                             float inputFrameRatio, float zoomAmount, float verticalShift);

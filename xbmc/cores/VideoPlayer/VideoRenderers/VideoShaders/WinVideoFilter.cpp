@@ -207,11 +207,14 @@ void COutputShader::ApplyEffectParameters(CD3DEffect &effect, unsigned sourceWid
 
     effect.SetScalar("g_toneP1", param);
     effect.SetFloatArray("g_coefsDst", coefs, 3);
+    m_toneMappingDebug = param;
   }
   else if (m_toneMapping && m_toneMappingMethod == VS_TONEMAPMETHOD_ACES)
   {
-    effect.SetScalar("g_luminance", GetLuminanceValue());
+    float lumin = GetLuminanceValue();
+    effect.SetScalar("g_luminance", lumin);
     effect.SetScalar("g_toneP1", m_toneMappingParam);
+    m_toneMappingDebug = lumin;
   }
   else if (m_toneMapping && m_toneMappingMethod == VS_TONEMAPMETHOD_HABLE)
   {
@@ -220,6 +223,7 @@ void COutputShader::ApplyEffectParameters(CD3DEffect &effect, unsigned sourceWid
     float lumin_div100 = lumin / (100.0f * m_toneMappingParam);
     effect.SetScalar("g_toneP1", lumin_factor);
     effect.SetScalar("g_toneP2", lumin_div100);
+    m_toneMappingDebug = lumin;
   }
 }
 
@@ -507,6 +511,50 @@ void COutputShader::CreateDitherView()
     return;
   }
   m_useDithering = true;
+}
+
+void COutputShader::GetDebugInfo(std::string& info)
+{
+  std::string tone = "OFF";
+  if (m_toneMapping)
+  {
+    std::string method;
+    switch (m_toneMappingMethod)
+    {
+      case VS_TONEMAPMETHOD_REINHARD:
+        method = "Reinhard";
+        break;
+      case VS_TONEMAPMETHOD_ACES:
+        method = "ACES";
+        break;
+      case VS_TONEMAPMETHOD_HABLE:
+        method = "Hable";
+        break;
+    }
+    tone = StringUtils::Format("ON ({}, {:.2f}, {:.2f}{})", method, m_toneMappingParam,
+                               m_toneMappingDebug, (m_toneMappingMethod == 1) ? "" : " nits");
+  }
+
+  std::string hlg = "OFF";
+  if (m_useHLGtoPQ)
+  {
+    hlg = "ON (peak 1000 nits)";
+  }
+
+  std::string lut = "OFF";
+  if (m_useLut)
+  {
+    lut = StringUtils::Format("ON (size {})", m_lutSize);
+  }
+
+  std::string dither = "OFF";
+  if (m_useDithering)
+  {
+    dither = StringUtils::Format("ON (depth {})", m_ditherDepth);
+  }
+
+  info = StringUtils::Format("Tone mapping: {} | HLG to PQ: {} | 3D LUT: {} | Dithering: {}", tone,
+                             hlg, lut, dither);
 }
 
 //==================================================================================

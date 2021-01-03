@@ -597,3 +597,171 @@ void CRendererBase::ProcessHDR(CRenderBuffer* rb)
     }
   }
 }
+
+void CRendererBase::GetDebugInfo(int idx, std::string& format, std::string& meta_prim, std::string& meta_light, std::string& shader)
+{
+  CRenderBuffer* rb = m_renderBuffers[idx];
+
+  std::string pixel;
+  switch (rb->av_format)
+  {
+    case AV_PIX_FMT_YUV420P:
+      pixel = "YUV420P";
+      break;
+    case AV_PIX_FMT_YUYV422:
+      pixel = "YUYV422";
+      break;
+    case AV_PIX_FMT_YUV444P:
+      pixel = "YUV444P";
+      break;
+    case AV_PIX_FMT_YUV410P:
+      pixel = "YUV410P";
+      break;
+    case AV_PIX_FMT_YUV411P:
+      pixel = "YUV411P";
+      break;
+    case AV_PIX_FMT_NV12:
+      pixel = "NV12";
+      break;
+    case AV_PIX_FMT_YUV420P10BE:
+      pixel = "YUV420P10BE";
+      break;
+    case AV_PIX_FMT_YUV420P10LE:
+      pixel = "YUV420P10LE";
+      break;
+    case AV_PIX_FMT_YUV422P10BE:
+      pixel = "YUV422P10BE";
+      break;
+    case AV_PIX_FMT_YUV422P10LE:
+      pixel = "YUV422P10LE";
+      break;
+    case AV_PIX_FMT_YUV444P10BE:
+      pixel = "YUV444P10BE";
+      break;
+    case AV_PIX_FMT_YUV444P10LE:
+      pixel = "YUV444P10LE";
+      break;
+    case AV_PIX_FMT_D3D11VA_VLD:
+      pixel = "D3D11VA";
+      break;
+    default:
+      pixel = StringUtils::Format("{}", rb->av_format);
+      break;
+  }
+
+  std::string prim;
+  switch (rb->primaries)
+  {
+    case AVCOL_PRI_BT470BG:
+      prim = "BT.470BG";
+      break;
+    case AVCOL_PRI_SMPTE170M:
+      prim = "SMPTE 170M";
+      break;
+    case AVCOL_PRI_BT709:
+      prim = "BT.709";
+      break;
+    case AVCOL_PRI_SMPTE240M:
+      prim = "SMPTE 240M";
+      break;
+    case AVCOL_PRI_BT2020:
+      prim = "BT.2020";
+      break;
+    case AVCOL_PRI_UNSPECIFIED:
+      prim = "unspecified";
+      break;
+    default:
+      prim = StringUtils::Format("{}", rb->primaries);
+      break;
+  }
+
+  std::string transf;
+  switch (rb->color_transfer)
+  {
+    case AVCOL_TRC_BT709:
+      transf = "BT.709";
+      break;
+    case AVCOL_TRC_GAMMA22:
+      transf = "GAMMA 2.2";
+      break;
+    case AVCOL_TRC_GAMMA28:
+      transf = "GAMMA 2.8";
+      break;
+    case AVCOL_TRC_SMPTE170M:
+      transf = "SMPTE 170M";
+      break;
+    case AVCOL_TRC_SMPTE240M:
+      transf = "SMPTE 240M";
+      break;
+    case AVCOL_TRC_BT2020_10:
+      transf = "BT.2020 10-bit";
+      break;
+    case AVCOL_TRC_SMPTE2084:
+      transf = "PQ";
+      break;
+    case AVCOL_TRC_SMPTE428:
+      transf = "SMPTE 428";
+      break;
+    case AVCOL_TRC_ARIB_STD_B67:
+      transf = "HLG";
+      break;
+    case AVCOL_TRC_UNSPECIFIED:
+      prim = "unspecified";
+      break;
+    default:
+      transf = StringUtils::Format("{}", rb->color_transfer);
+      break;
+  }
+
+  int max = static_cast<int>(exp2(static_cast<double>(rb->bits)));
+  int range_min = rb->full_range ? 0 : (max * 16) / 256;
+  int range_max = rb->full_range ? max - 1 : (max * 235) / 256;
+
+  format = StringUtils::Format(
+      "Source: pixel: {} {}-bit, range: {} ({}-{}), matrix: {}, transfer: {}, {}", pixel, rb->bits,
+      rb->full_range ? "full" : "limited", range_min, range_max, prim, transf,
+      (rb->pictureFlags & DVP_FLAG_INTERLACED) ? "interlaced" : "progressive");
+
+  if (rb->hasDisplayMetadata && rb->displayMetadata.has_primaries &&
+      rb->displayMetadata.display_primaries[0][0].num)
+  {
+    double prim[3][2];
+    double wp[2];
+
+    for (int i = 0; i < 3; i++)
+    {
+      for (int j = 0; j < 2; j++)
+        prim[i][j] = static_cast<double>(rb->displayMetadata.display_primaries[i][j].num) /
+                     static_cast<double>(rb->displayMetadata.display_primaries[i][j].den);
+    }
+
+    for (int j = 0; j < 2; j++)
+      wp[j] = static_cast<double>(rb->displayMetadata.white_point[j].num) /
+              static_cast<double>(rb->displayMetadata.white_point[j].den);
+
+    meta_prim = StringUtils::Format("Primaries (meta): R({:.3f} {:.3f}), G({:.3f} {:.3f}), "
+                                    "B({:.3f} {:.3f}), WP({:.3f} {:.3f})",
+                                    prim[0][0], prim[0][1], prim[1][0], prim[1][1], prim[2][0],
+                                    prim[2][1], wp[0], wp[1]);
+  }
+
+  if (rb->hasDisplayMetadata && rb->displayMetadata.has_luminance &&
+      rb->displayMetadata.max_luminance.num)
+  {
+    double maxML = static_cast<double>(rb->displayMetadata.max_luminance.num) /
+                   static_cast<double>(rb->displayMetadata.max_luminance.den);
+    double minML = static_cast<double>(rb->displayMetadata.min_luminance.num) /
+                   static_cast<double>(rb->displayMetadata.min_luminance.den);
+
+    meta_light =
+        StringUtils::Format("HDR light (meta): max ML: {:.0f}, min ML: {:.4f}", maxML, minML);
+
+    if (rb->hasLightMetadata && rb->lightMetadata.MaxCLL)
+      meta_light.append(StringUtils::Format(", max CLL: {}, max FALL: {}", rb->lightMetadata.MaxCLL,
+                                            rb->lightMetadata.MaxFALL));
+  }
+
+  if (m_outputShader)
+    m_outputShader->GetDebugInfo(shader);
+
+}

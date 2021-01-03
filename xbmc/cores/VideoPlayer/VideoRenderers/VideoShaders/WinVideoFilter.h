@@ -70,6 +70,8 @@ public:
                           bool hasLightMetadata, AVContentLightMetadata lightMetadata);
   void SetToneMapParam(int method, float param);
 
+  void GetDebugInfo(std::string& info);
+
   static bool CreateLUTView(int lutSize, uint16_t* lutData, bool isRGB, ID3D11ShaderResourceView** ppLUTView);
 
 private:
@@ -98,6 +100,7 @@ private:
   int m_ditherDepth = 0;
   int m_toneMappingMethod = 0;
   float m_toneMappingParam = 1.0f;
+  float m_toneMappingDebug = .0f;
 
   CRect m_sourceRect = {};
   CPoint m_destPoints[4] = {};

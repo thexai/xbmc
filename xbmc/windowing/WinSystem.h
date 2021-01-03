@@ -165,6 +165,9 @@ public:
   virtual HDR_STATUS ToggleHDR() { return HDR_STATUS::HDR_UNSUPPORTED; };
   virtual HDR_STATUS GetOSHDRStatus() { return HDR_STATUS::HDR_UNSUPPORTED; };
 
+  // Get debug info from video output stage
+  virtual void GetDebugInfo(std::string& swapchain, std::string& output){};
+
   static const char* SETTING_WINSYSTEM_IS_HDR_DISPLAY;
 
 protected:

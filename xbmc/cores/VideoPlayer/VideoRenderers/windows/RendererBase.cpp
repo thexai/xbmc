@@ -598,3 +598,71 @@ void CRendererBase::ProcessHDR(CRenderBuffer* rb)
     }
   }
 }
+
+void CRendererBase::GetDebugInfo(int idx,
+                                 std::string& format,
+                                 std::string& meta_prim,
+                                 std::string& meta_light,
+                                 std::string& shader)
+{
+  CRenderBuffer* rb = m_renderBuffers[idx];
+
+  const char* px = av_get_pix_fmt_name(rb->av_format);
+  const char* pr = av_color_primaries_name(rb->primaries);
+  const char* tr = av_color_transfer_name(rb->color_transfer);
+
+  const std::string pixel = (px) ? px : "unknown";
+  const std::string prim = (pr) ? pr : "unknown";
+  const std::string trans = (tr) ? tr : "unknown";
+
+  const int max = static_cast<int>(std::exp2(rb->bits));
+  const int range_min = rb->full_range ? 0 : (max * 16) / 256;
+  const int range_max = rb->full_range ? max - 1 : (max * 235) / 256;
+
+  format = StringUtils::Format(
+      "Source: pixel: {} {}-bit, range: {} ({}-{}), matrix: {}, transfer: {}, {}", pixel, rb->bits,
+      rb->full_range ? "full" : "limited", range_min, range_max, prim, trans,
+      (rb->pictureFlags & DVP_FLAG_INTERLACED) ? "interlaced" : "progressive");
+
+  if (rb->hasDisplayMetadata && rb->displayMetadata.has_primaries &&
+      rb->displayMetadata.display_primaries[0][0].num)
+  {
+    double prim[3][2];
+    double wp[2];
+
+    for (int i = 0; i < 3; i++)
+    {
+      for (int j = 0; j < 2; j++)
+        prim[i][j] = static_cast<double>(rb->displayMetadata.display_primaries[i][j].num) /
+                     static_cast<double>(rb->displayMetadata.display_primaries[i][j].den);
+    }
+
+    for (int j = 0; j < 2; j++)
+      wp[j] = static_cast<double>(rb->displayMetadata.white_point[j].num) /
+              static_cast<double>(rb->displayMetadata.white_point[j].den);
+
+    meta_prim = StringUtils::Format("Primaries (meta): R({:.3f} {:.3f}), G({:.3f} {:.3f}), "
+                                    "B({:.3f} {:.3f}), WP({:.3f} {:.3f})",
+                                    prim[0][0], prim[0][1], prim[1][0], prim[1][1], prim[2][0],
+                                    prim[2][1], wp[0], wp[1]);
+  }
+
+  if (rb->hasDisplayMetadata && rb->displayMetadata.has_luminance &&
+      rb->displayMetadata.max_luminance.num)
+  {
+    double maxML = static_cast<double>(rb->displayMetadata.max_luminance.num) /
+                   static_cast<double>(rb->displayMetadata.max_luminance.den);
+    double minML = static_cast<double>(rb->displayMetadata.min_luminance.num) /
+                   static_cast<double>(rb->displayMetadata.min_luminance.den);
+
+    meta_light =
+        StringUtils::Format("HDR light (meta): max ML: {:.0f}, min ML: {:.4f}", maxML, minML);
+
+    if (rb->hasLightMetadata && rb->lightMetadata.MaxCLL)
+      meta_light.append(StringUtils::Format(", max CLL: {}, max FALL: {}", rb->lightMetadata.MaxCLL,
+                                            rb->lightMetadata.MaxFALL));
+  }
+
+  if (m_outputShader)
+    shader = m_outputShader->GetDebugInfo();
+}

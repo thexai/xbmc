@@ -333,3 +333,11 @@ bool CWinRenderer::NeedBuffer(int idx)
 
   return m_renderer->NeedBuffer(idx);
 }
+
+void CWinRenderer::GetDebugInfo(int idx, std::string& format, std::string& meta_prim, std::string& meta_light)
+{
+  if (!m_bConfigured)
+    return;
+
+  return m_renderer->GetDebugInfo(idx, format, meta_prim, meta_light);
+}

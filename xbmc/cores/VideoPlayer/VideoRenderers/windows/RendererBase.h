@@ -127,6 +127,8 @@ public:
   bool Flush(bool saveBuffers);
   void SetBufferSize(int numBuffers) { m_iBuffersRequired = numBuffers; }
 
+  void GetDebugInfo(int idx, std::string& format, std::string& meta_prim, std::string& meta_light);
+
   static DXGI_FORMAT GetDXGIFormat(const VideoPicture &picture);
   static DXGI_FORMAT GetDXGIFormat(CVideoBuffer* videoBuffer);
   static AVPixelFormat GetAVFormat(DXGI_FORMAT dxgi_format);

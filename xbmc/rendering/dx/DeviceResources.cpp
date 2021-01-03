@@ -1225,3 +1225,38 @@ HDR_STATUS DX::DeviceResources::ToggleHDR()
 
   return hdrStatus;
 }
+
+void DX::DeviceResources::GetDebugInfo(std::string& swapchain, std::string& output)
+{
+  if (m_swapChain == nullptr)
+    return;
+
+  DXGI_SWAP_CHAIN_DESC1 desc = {};
+  m_swapChain->GetDesc1(&desc);
+
+  DXGI_MODE_DESC md = {};
+  GetDisplayMode(&md);
+
+  int bits = (desc.Format == DXGI_FORMAT_R10G10B10A2_UNORM) ? 10 : 8;
+  int max = (desc.Format == DXGI_FORMAT_R10G10B10A2_UNORM) ? 1024 : 256;
+  int range_min = DX::Windowing()->UseLimitedColor() ? (max * 16) / 256 : 0;
+  int range_max = DX::Windowing()->UseLimitedColor() ? (max * 235) / 256 : max - 1;
+
+  swapchain = StringUtils::Format(
+      "Swapchain: {} buffers, flip {}, {}, EOTF: {} (Windows HDR {})", desc.BufferCount,
+      (desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD) ? "discard" : "sequential",
+      Windowing()->IsFullScreen()
+          ? ((desc.Flags == DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH) ? "fullscreen exclusive"
+                                                                    : "fullscreen windowed")
+          : "windowed screen",
+      m_IsTransferPQ ? "PQ" : "SDR", m_IsHDROutput ? "on" : "off");
+
+  output = StringUtils::Format(
+      "Output: {}x{} @ {:.2f} Hz, RGB {}-bit, {} range ({}-{}), {}", desc.Width, desc.Height,
+      static_cast<double>(md.RefreshRate.Numerator) /
+          static_cast<double>(md.RefreshRate.Denominator),
+      bits, DX::Windowing()->UseLimitedColor() ? "limited" : "full", range_min, range_max,
+      (md.ScanlineOrdering == DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE) ? "progressive" : "interlaced");
+
+  return;
+}

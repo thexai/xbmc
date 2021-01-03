@@ -46,6 +46,12 @@ public:
   bool WantsDoublePass() override;
   bool ConfigChanged(const VideoPicture& picture) override;
 
+  // Get debug info from render buffer
+  void GetDebugInfo(int idx,
+                    std::string& format,
+                    std::string& meta_prim,
+                    std::string& meta_light) override;
+
 protected:
   void PreInit();
   int NextBuffer() const;

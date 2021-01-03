@@ -1239,3 +1239,36 @@ HDR_STATUS DX::DeviceResources::ToggleHDR()
 
   return hdrStatus;
 }
+
+void DX::DeviceResources::GetDebugInfo(std::string& info1, std::string& info2)
+{
+  if (m_swapChain == nullptr)
+    return;
+
+  DXGI_SWAP_CHAIN_DESC1 desc = {};
+  m_swapChain->GetDesc1(&desc);
+
+  DXGI_MODE_DESC md = {};
+  GetDisplayMode(&md);
+
+  info1 = StringUtils::Format(
+      "Output: {}x{} @ {:.2f} Hz, {}, {} range, {}",
+      desc.Width, desc.Height,
+      static_cast<double>(md.RefreshRate.Numerator) / static_cast<double>(md.RefreshRate.Denominator),
+      (desc.Format == DXGI_FORMAT_R10G10B10A2_UNORM) ? "RGB 10-bit" : "RGB 8-bit",
+      DX::Windowing()->UseLimitedColor() ? "limited" : "full",
+      (md.ScanlineOrdering == DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE) ? "progressive" : "interlaced");
+
+  info2 = StringUtils::Format(
+      "Swapchain: {} buffers, flip {}, {}, EOTF: {} (Windows HDR {})",
+      desc.BufferCount,
+      (desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD) ? "discard" : "sequential",
+      Windowing()->IsFullScreen()
+          ? ((desc.Flags == DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH) ? "fullscreen exclusive"
+                                                                    : "fullscreen windowed")
+          : "windowed screen",
+      m_IsTransferPQ ? "PQ" : "SDR",
+      m_IsHDROutput ? "on" : "off");
+
+  return;
+}

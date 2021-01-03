@@ -720,22 +720,30 @@ void CRenderManager::Render(bool clear, DWORD flags, DWORD alpha, bool gui)
 
     if (m_renderDebug)
     {
-      std::string audio, video, player, vsync;
+      std::array<std::string, 6> info = {};
 
-      m_playerPort->GetDebugInfo(audio, video, player);
-
-      double refreshrate, clockspeed;
-      int missedvblanks;
-      vsync = StringUtils::Format("VSyncOff: %.1f latency: %.3f  ", m_clockSync.m_syncOffset / 1000, DVD_TIME_TO_MSEC(m_displayLatency) / 1000.0f);
-      if (m_dvdClock.GetClockInfo(missedvblanks, clockspeed, refreshrate))
+      if (m_renderDebugVideo)
       {
-        vsync += StringUtils::Format("VSync: refresh:%.3f missed:%i speed:%.3f%%",
-                                     refreshrate,
-                                     missedvblanks,
-                                     clockspeed * 100);
+        m_pRenderer->GetDebugInfo(m_presentsource, info[0], info[1], info[2], info[3]);
+        CServiceBroker::GetWinSystem()->GetDebugInfo(info[4], info[5]);
+      }
+      else
+      {
+        m_playerPort->GetDebugInfo(info[0], info[1], info[2]);
+
+        double refreshrate, clockspeed;
+        int missedvblanks;
+        info[3] =
+            StringUtils::Format("VSyncOff: %.1f latency: %.3f  ", m_clockSync.m_syncOffset / 1000,
+                                DVD_TIME_TO_MSEC(m_displayLatency) / 1000.0f);
+        if (m_dvdClock.GetClockInfo(missedvblanks, clockspeed, refreshrate))
+        {
+          info[3] += StringUtils::Format("VSync: refresh:%.3f missed:%i speed:%.3f%%", refreshrate,
+                                         missedvblanks, clockspeed * 100);
+        }
       }
 
-      m_debugRenderer.SetInfo(audio, video, player, vsync);
+      m_debugRenderer.SetInfo(info);
       m_debugRenderer.Render(src, dst, view);
 
       m_debugTimer.Set(1000);
@@ -894,6 +902,14 @@ void CRenderManager::ToggleDebug()
 {
   m_renderDebug = !m_renderDebug;
   m_debugTimer.SetExpired();
+  m_renderDebugVideo = false;
+}
+
+void CRenderManager::ToggleDebugVideo()
+{
+  m_renderDebug = !m_renderDebug;
+  m_debugTimer.SetExpired();
+  m_renderDebugVideo = true;
 }
 
 bool CRenderManager::AddVideoPicture(const VideoPicture& picture, volatile std::atomic_bool& bStop, EINTERLACEMETHOD deintMethod, bool wait)

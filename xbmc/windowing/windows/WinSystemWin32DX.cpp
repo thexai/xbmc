@@ -421,3 +421,8 @@ void CWinSystemWin32DX::SetHdrColorSpace(const DXGI_COLOR_SPACE_TYPE colorSpace)
 {
   m_deviceResources->SetHdrColorSpace(colorSpace);
 }
+
+void CWinSystemWin32DX::GetDebugInfo(std::string& swapchain, std::string& output)
+{
+  m_deviceResources->GetDebugInfo(swapchain, output);
+}

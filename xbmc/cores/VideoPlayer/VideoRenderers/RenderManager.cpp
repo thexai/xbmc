@@ -720,22 +720,25 @@ void CRenderManager::Render(bool clear, DWORD flags, DWORD alpha, bool gui)
 
     if (m_renderDebug)
     {
-      std::string audio, video, player, vsync;
+      std::array<std::string, 10> info = {};
 
-      m_playerPort->GetDebugInfo(audio, video, player);
+      m_playerPort->GetDebugInfo(info[0], info[1], info[2]);
 
       double refreshrate, clockspeed;
       int missedvblanks;
-      vsync = StringUtils::Format("VSyncOff: %.1f latency: %.3f  ", m_clockSync.m_syncOffset / 1000, DVD_TIME_TO_MSEC(m_displayLatency) / 1000.0f);
+      info[3] =
+          StringUtils::Format("VSyncOff: %.1f latency: %.3f  ", m_clockSync.m_syncOffset / 1000,
+                              DVD_TIME_TO_MSEC(m_displayLatency) / 1000.0f);
       if (m_dvdClock.GetClockInfo(missedvblanks, clockspeed, refreshrate))
       {
-        vsync += StringUtils::Format("VSync: refresh:%.3f missed:%i speed:%.3f%%",
-                                     refreshrate,
-                                     missedvblanks,
-                                     clockspeed * 100);
+        info[3] += StringUtils::Format("VSync: refresh:%.3f missed:%i speed:%.3f%%", refreshrate,
+                                       missedvblanks, clockspeed * 100);
       }
 
-      m_debugRenderer.SetInfo(audio, video, player, vsync);
+      m_pRenderer->GetDebugInfo(m_presentsource, info[4], info[5], info[6], info[7]);
+      CServiceBroker::GetWinSystem()->GetDebugInfo(info[8], info[9]);
+
+      m_debugRenderer.SetInfo(info);
       m_debugRenderer.Render(src, dst, view);
 
       m_debugTimer.Set(1000);

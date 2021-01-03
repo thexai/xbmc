@@ -19,6 +19,7 @@
 #include <dxgi1_5.h>
 extern "C" {
 #include <libavutil/mastering_display_metadata.h>
+#include <libavutil/pixdesc.h>
 }
 
 struct VideoPicture;
@@ -79,7 +80,7 @@ public:
   bool full_range = false;
   int bits = 8;
   uint8_t texBits = 8;
-
+  AVPixelFormat pixelFormat = AV_PIX_FMT_NONE; // source pixel format
   bool hasDisplayMetadata = false;
   bool hasLightMetadata = false;
   AVMasteringDisplayMetadata displayMetadata = {};
@@ -126,6 +127,12 @@ public:
   void ReleaseBuffer(int idx);
   bool Flush(bool saveBuffers);
   void SetBufferSize(int numBuffers) { m_iBuffersRequired = numBuffers; }
+
+  void GetDebugInfo(int idx,
+                    std::string& format,
+                    std::string& meta_prim,
+                    std::string& meta_light,
+                    std::string& shader);
 
   static DXGI_FORMAT GetDXGIFormat(const VideoPicture &picture);
   static DXGI_FORMAT GetDXGIFormat(CVideoBuffer* videoBuffer);

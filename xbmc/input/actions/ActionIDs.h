@@ -432,6 +432,9 @@
 
 #define ACTION_CYCLE_TONEMAP_METHOD 261 //!< Switch to next tonemap method
 
+//! Show debug info for VideoPlayer (video metadata, shaders, render & output)
+#define ACTION_PLAYER_DEBUG_VIDEO 262
+
 // Voice actions
 #define ACTION_VOICE_RECOGNIZE 300
 

@@ -109,6 +109,9 @@ namespace DX
 #endif // TARGET_WINDOWS_STORE
     bool IsNV12SharedTexturesSupported() const { return m_NV12SharedTexturesSupport; }
 
+    // Get debug info from swapchain
+    void GetDebugInfo(std::string& swapchain, std::string& output);
+
   private:
     class CBackBuffer : public CD3DTexture
     {

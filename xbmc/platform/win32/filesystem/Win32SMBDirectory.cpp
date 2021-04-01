@@ -11,7 +11,9 @@
 #include "FileItem.h"
 #include "PasswordManager.h"
 #include "URL.h"
+#include "Win32WSDiscovery.h"
 #include "utils/CharsetConverter.h"
+#include "utils/StringUtils.h"
 #include "utils/XTimeUtils.h"
 #include "utils/auto_buffer.h"
 #include "utils/log.h"
@@ -25,6 +27,9 @@
 
 #include <lm.h>
 #pragma comment(lib, "Netapi32.lib")
+
+#include <windns.h>
+#pragma comment(lib, "dnsapi.lib")
 
 #include <cassert>
 
@@ -50,6 +55,8 @@ static inline bool worthTryToConnect(const DWORD lastErr)
 */
 static bool localGetNetworkResources(struct _NETRESOURCEW* basePathToScanPtr, const std::string& urlPrefixForItems, CFileItemList& items, bool getShares);
 static bool localGetShares(const std::wstring& serverNameToScan, const std::string& urlPrefixForItems, CFileItemList& items);
+static bool localWSDiscovery(const std::string& urlPrefixForItems, CFileItemList& items);
+static std::wstring localResolveHostName(std::wstring server_ip);
 
 // check for empty string, remove trailing slash if any, convert to win32 form
 inline static std::wstring prepareWin32SMBDirectoryName(const CURL& url)
@@ -392,9 +399,18 @@ static bool localGetNetworkResources(struct _NETRESOURCEW* basePathToScanPtr, co
     if (localGetShares(basePathToScanPtr->lpRemoteName, urlPrefixForItems, items))
       return true;
 
-    CLog::LogF(LOGINFO,
-               "Can't read shares for \"%ls\" by localGetShares(), fallback to standard method",
+    CLog::LogF(LOGWARNING,
+               "Can't read shares for \"%ls\" by localGetShares(), fallback to old method",
                FromW(basePathToScanPtr->lpRemoteName));
+  }
+
+  // Get servers using WS-Discovery protocol
+  if (!getShares)
+  {
+    if (localWSDiscovery(urlPrefixForItems, items))
+      return true;
+
+    CLog::LogF(LOGWARNING, "Can't locate servers by localWSDiscovery(), fallback to old method");
   }
 
   HANDLE netEnum;
@@ -616,6 +632,74 @@ static bool localGetShares(const std::wstring& serverNameToScan, const std::stri
 
   items.Append(locItems); // all shares loaded, store result
   return true;
+}
+
+// Get servers using WS-Discovery protocol
+static bool localWSDiscovery(const std::string& urlPrefixForItems, CFileItemList& items)
+{
+  bool success = false;
+  IWSDiscoveryProvider* provider = nullptr;
+  CClientNotificationSink* sink = nullptr;
+
+  if (S_OK == WSDCreateDiscoveryProvider(nullptr, &provider))
+  {
+    provider->SetAddressFamily(WSDAPI_ADDRESSFAMILY_IPV4);
+
+    if (S_OK == CreateClientNotificationSink(&sink))
+    {
+      if (S_OK == provider->Attach(sink))
+      {
+        if (S_OK == provider->SearchByType(nullptr, nullptr, nullptr, nullptr))
+        {
+          sink->WaitSearchComplete();
+
+          for (const auto& ip : sink->GetServersIps())
+          {
+            std::wstring hostname = localResolveHostName(ip);
+            std::string shareNameUtf8;
+            if (g_charsetConverter.wToUTF8(hostname, shareNameUtf8, true) && !shareNameUtf8.empty())
+            {
+              CFileItemPtr pItem = std::make_shared<CFileItem>(shareNameUtf8);
+              pItem->SetPath(urlPrefixForItems + shareNameUtf8 + '/');
+              pItem->m_bIsFolder = true;
+              items.Add(pItem);
+              success = true;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (provider)
+  {
+    provider->Detach();
+    provider->Release();
+  }
+  if (sink)
+    sink->Release();
+
+  return success;
+}
+
+static std::wstring localResolveHostName(std::wstring server_ip)
+{
+  std::wstring hostname = server_ip;
+  std::vector<std::string> ip = StringUtils::Split(FromW(server_ip), '.', 4);
+  std::string reverse = StringUtils::Format("{}.{}.{}.{}.IN-ADDR.ARPA", ip[3], ip[2], ip[1], ip[0]);
+
+  PDNS_RECORD pDnsRecord = nullptr;
+
+  if (!DnsQuery_W(KODI::PLATFORM::WINDOWS::ToW(reverse).c_str(), DNS_TYPE_PTR, DNS_QUERY_STANDARD,
+                  nullptr, &pDnsRecord, nullptr) &&
+      pDnsRecord)
+  {
+    hostname = pDnsRecord->Data.PTR.pNameHost;
+  }
+
+  DnsRecordListFree(pDnsRecord, freetype);
+
+  return hostname;
 }
 
 bool CWin32SMBDirectory::ConnectAndAuthenticate(CURL& url, bool allowPromptForCredential /*= false*/)

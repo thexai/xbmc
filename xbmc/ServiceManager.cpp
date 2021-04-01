@@ -34,6 +34,10 @@
 #include "utils/log.h"
 #include "weather/WeatherManager.h"
 
+#ifdef TARGET_WINDOWS_DESKTOP
+#include "platform/win32/network/WS-DiscoveryWin32.h"
+#endif
+
 using namespace KODI;
 
 CServiceManager::CServiceManager() = default;
@@ -155,6 +159,12 @@ bool CServiceManager::InitStageTwo(const CAppParamParser &params, const std::str
 // stage 3 is called after successful initialization of WindowManager
 bool CServiceManager::InitStageThree(const std::shared_ptr<CProfileManager>& profileManager)
 {
+  // Initializes WS-Discovery daemon (only platform Win32)
+  // Needs to be initialized a bit later that m_Platform->Init()
+#ifdef TARGET_WINDOWS_DESKTOP
+  CWSDiscoverySupport::Get()->Initialize();
+#endif
+
   // Peripherals depends on strings being loaded before stage 3
   m_peripherals->Initialise();
 
@@ -184,6 +194,9 @@ void CServiceManager::DeinitStageThree()
   m_contextMenuManager->Deinit();
   m_gameServices.reset();
   m_peripherals->Clear();
+#ifdef TARGET_WINDOWS_DESKTOP
+  CWSDiscoverySupport::Get()->Terminate();
+#endif
 }
 
 void CServiceManager::DeinitStageTwo()

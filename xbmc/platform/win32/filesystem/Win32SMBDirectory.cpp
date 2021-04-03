@@ -12,11 +12,13 @@
 #include "PasswordManager.h"
 #include "URL.h"
 #include "Win32WSDiscovery.h"
+#include "dialogs/GUIDialogBusy.h"
 #include "utils/CharsetConverter.h"
 #include "utils/StringUtils.h"
 #include "utils/XTimeUtils.h"
 #include "utils/auto_buffer.h"
 #include "utils/log.h"
+#include "threads/Event.h"
 
 #include "platform/win32/CharsetConverter.h"
 #include "platform/win32/WIN32Util.h"
@@ -640,6 +642,7 @@ static bool localWSDiscovery(const std::string& urlPrefixForItems, CFileItemList
   bool success = false;
   IWSDiscoveryProvider* provider = nullptr;
   CClientNotificationSink* sink = nullptr;
+  CEvent event = {};
 
   if (S_OK == WSDCreateDiscoveryProvider(nullptr, &provider))
   {
@@ -651,7 +654,9 @@ static bool localWSDiscovery(const std::string& urlPrefixForItems, CFileItemList
       {
         if (S_OK == provider->SearchByType(nullptr, nullptr, nullptr, nullptr))
         {
-          sink->WaitSearchComplete();
+          sink->AttachEvent(&event);
+
+          CGUIDialogBusy::WaitOnEvent(event);
 
           for (const auto& ip : sink->GetServersIps())
           {

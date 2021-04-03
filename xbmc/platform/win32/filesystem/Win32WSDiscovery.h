@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "threads/Event.h"
+
 #include <wsdapi.h>
 #pragma comment(lib, "wsdapi.lib")
 
@@ -32,11 +34,11 @@ public:
   ULONG STDMETHODCALLTYPE AddRef();
   ULONG STDMETHODCALLTYPE Release();
 
-  void WaitSearchComplete();
+  void AttachEvent(CEvent* pEvent) { m_pEvent = pEvent; };
   std::vector<std::wstring> GetServersIps() { return m_serversIps; }
 
 private:
   std::vector<std::wstring> m_serversIps;
-  bool m_finished;
+  CEvent* m_pEvent = nullptr;
   ULONG m_cRef;
 };

@@ -29,8 +29,6 @@ HRESULT CreateClientNotificationSink(CClientNotificationSink** sink)
 
 CClientNotificationSink::CClientNotificationSink() : m_cRef(1)
 {
-  m_finished = false;
-  m_serversIps.clear();
 }
 
 CClientNotificationSink::~CClientNotificationSink()
@@ -70,22 +68,18 @@ HRESULT STDMETHODCALLTYPE CClientNotificationSink::Remove(IWSDiscoveredService* 
 
 HRESULT STDMETHODCALLTYPE CClientNotificationSink::SearchFailed(HRESULT hr, LPCWSTR tag)
 {
-  m_finished = true;
+  if (m_pEvent)
+    m_pEvent->Set();
 
   return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CClientNotificationSink::SearchComplete(LPCWSTR tag)
 {
-  m_finished = true;
+  if (m_pEvent)
+    m_pEvent->Set();
 
   return S_OK;
-}
-
-void CClientNotificationSink::WaitSearchComplete()
-{
-  while (!m_finished)
-    Sleep(100);
 }
 
 HRESULT STDMETHODCALLTYPE CClientNotificationSink::QueryInterface(REFIID riid, void** object)

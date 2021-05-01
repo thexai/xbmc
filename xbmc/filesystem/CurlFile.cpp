@@ -523,6 +523,10 @@ void CCurlFile::SetCommonOptions(CReadState* state, bool failOnError /* = true *
   if (!m_verifyPeer)
     g_curlInterface.easy_setopt(h, CURLOPT_SSL_VERIFYPEER, 0);
 
+#ifdef TARGET_WINDOWS_STORE // It is not working in UWP ==> OpenSSL bug?
+  g_curlInterface.easy_setopt(h, CURLOPT_SSL_VERIFYPEER, 0);
+#endif // TARGET_WINDOWS_STORE
+
   g_curlInterface.easy_setopt(m_state->m_easyHandle, CURLOPT_URL, m_url.c_str());
   g_curlInterface.easy_setopt(m_state->m_easyHandle, CURLOPT_TRANSFERTEXT, CURL_OFF);
 

@@ -29,6 +29,15 @@
 #pragma comment(lib, "dxgi.lib")
 #endif // _DEBUG
 
+#ifdef TARGET_WINDOWS_STORE
+#include <winrt/Windows.Graphics.Display.Core.h>
+
+extern "C"
+{
+#include <libavutil/rational.h>
+}
+#endif
+
 using namespace DirectX;
 using namespace Microsoft::WRL;
 using namespace Concurrency;
@@ -170,7 +179,22 @@ void DX::DeviceResources::GetDisplayMode(DXGI_MODE_DESC* mode) const
     else
       mode->ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE;
   }
-#endif
+#else // TARGET_WINDOWS_STORE
+  using namespace winrt::Windows::Graphics::Display::Core;
+  auto hdmiInfo = HdmiDisplayInformation::GetForCurrentView();
+  if (hdmiInfo) // Xbox only
+  {
+    auto currentMode = hdmiInfo.GetCurrentDisplayMode();
+    AVRational refresh = av_d2q(currentMode.RefreshRate(), 60000);
+    mode->RefreshRate.Numerator = refresh.num;
+    mode->RefreshRate.Denominator = refresh.den;
+  }
+  else // UWP Windows 10 only
+  {
+    mode->RefreshRate.Numerator = 60;
+    mode->RefreshRate.Denominator = 1;
+  }
+#endif // TARGET_WINDOWS_DESKTOP
 }
 
 void DX::DeviceResources::SetViewPort(D3D11_VIEWPORT& viewPort) const
@@ -525,7 +549,6 @@ void DX::DeviceResources::ResizeBuffers()
   bool bHWStereoEnabled = RENDER_STEREO_MODE_HARDWAREBASED ==
                           CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoMode();
   bool windowed = true;
-  bool isHdrEnabled = false;
   HRESULT hr = E_FAIL;
   DXGI_SWAP_CHAIN_DESC1 scDesc = {};
 
@@ -554,9 +577,11 @@ void DX::DeviceResources::ResizeBuffers()
     }
   }
 
-  isHdrEnabled = (HDR_STATUS::HDR_ON == CWIN32Util::GetWindowsHDRStatus());
+  // on UWP (Windows 10 / Xbox) this method requires valid swapchain
+  // so first time (m_swapChain == nullptr) retuns always false even if HDR is ON
+  bool isHdrEnabled = IsHDRDisplayEnabled();
 
-  if (m_swapChain != nullptr)
+  if (m_swapChain)
   {
     // If the swap chain already exists, resize it.
     m_swapChain->GetDesc1(&scDesc);
@@ -640,15 +665,6 @@ void DX::DeviceResources::ResizeBuffers()
       return;
     }
 
-    m_IsHDROutput = (swapChainDesc.Format == DXGI_FORMAT_R10G10B10A2_UNORM) && isHdrEnabled;
-
-    const int bits = (swapChainDesc.Format == DXGI_FORMAT_R10G10B10A2_UNORM) ? 10 : 8;
-    std::string flip =
-        (swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD) ? "discard" : "sequential";
-
-    CLog::LogF(LOGINFO, "{} bit swapchain is used with {} flip {} buffers and {} output", bits,
-               swapChainDesc.BufferCount, flip, m_IsHDROutput ? "HDR" : "SDR");
-
     hr = swapChain.As(&m_swapChain); CHECK_ERR();
     m_stereoEnabled = bHWStereoEnabled;
 
@@ -658,6 +674,38 @@ void DX::DeviceResources::ResizeBuffers()
     hr = m_d3dDevice.As(&dxgiDevice); CHECK_ERR();
     dxgiDevice->SetMaximumFrameLatency(1);
   }
+
+  // Is need re-evaluate if HDR state has changed because on UWP swapchain always is created
+  // as SDR first time. This is also beneficial on Windows 10 x64 because exists some rare cases
+  // reported with AMD drivers that HDR is not enabled first time and is need switch from
+  // full screen to windowed to enable HDR.
+  bool isHdrEnabledNow = IsHDRDisplayEnabled();
+
+  if (m_swapChain && isHdrEnabledNow != isHdrEnabled)
+  {
+    scDesc = {};
+    m_swapChain->GetDesc1(&scDesc);
+    isHdrEnabledNow ? scDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM
+                    : scDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    hr = m_swapChain->ResizeBuffers(scDesc.BufferCount, lround(m_outputSize.Width),
+                                    lround(m_outputSize.Height), scDesc.Format,
+                                    windowed ? 0 : DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH);
+
+    if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
+    {
+      HandleDeviceLost(hr == DXGI_ERROR_DEVICE_REMOVED);
+      return;
+    }
+    CHECK_ERR();
+  }
+
+  // updates swapchain HDR cached state and logs swapchain final info
+  m_IsHDROutput = (scDesc.Format == DXGI_FORMAT_R10G10B10A2_UNORM) && isHdrEnabledNow;
+
+  CLog::LogF(LOGINFO, "{} bit swapchain is used with {} flip {} buffers and {} output",
+             (scDesc.Format == DXGI_FORMAT_R10G10B10A2_UNORM) ? 10 : 8, scDesc.BufferCount,
+             (scDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD) ? "discard" : "sequential",
+             m_IsHDROutput ? "HDR" : "SDR");
 
   CLog::LogF(LOGDEBUG, "end resize buffers.");
 }
@@ -1165,7 +1213,7 @@ void DX::DeviceResources::SetHdrMetaData(DXGI_HDR_METADATA_HDR10& hdr10) const
   }
 }
 
-void DX::DeviceResources::SetHdrColorSpace(const DXGI_COLOR_SPACE_TYPE colorSpace)
+void DX::DeviceResources::SetHdrColorSpace(const DXGI_COLOR_SPACE_TYPE& colorSpace)
 {
   ComPtr<IDXGISwapChain3> swapChain3;
 
@@ -1187,8 +1235,49 @@ void DX::DeviceResources::SetHdrColorSpace(const DXGI_COLOR_SPACE_TYPE colorSpac
   }
 }
 
+bool DX::DeviceResources::IsHDRDisplayEnabled()
+{
+#ifdef TARGET_WINDOWS_STORE
+  ComPtr<IDXGIOutput> pOutput;
+  ComPtr<IDXGIOutput6> pOutput6;
+
+  if (m_swapChain == nullptr)
+    return false;
+
+  if (SUCCEEDED(m_swapChain->GetContainingOutput(pOutput.GetAddressOf())))
+  {
+    if (SUCCEEDED(pOutput.As(&pOutput6)))
+    {
+      DXGI_OUTPUT_DESC1 od = {};
+
+      if (SUCCEEDED(pOutput6->GetDesc1(&od)))
+      {
+        if (od.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
+        {
+          CLog::LogF(LOGINFO, "Monitor is HDR capable and HDR is enabled.");
+          return true;
+        }
+        else if (od.MaxLuminance >= 400.0f)
+        {
+          CLog::LogF(LOGINFO, "Monitor is HDR capable although is NOT enabled.");
+        }
+      }
+      else
+      {
+        CLog::LogF(LOGERROR, "DXGI GetDesc1 failed");
+      }
+    }
+  }
+
+  return false;
+#else // TARGET_WINDOWS_DESKTOP
+  return (HDR_STATUS::HDR_ON == CWIN32Util::GetWindowsHDRStatus());
+#endif
+}
+
 HDR_STATUS DX::DeviceResources::ToggleHDR()
 {
+#ifdef TARGET_WINDOWS_DESKTOP
   DXGI_MODE_DESC md = {};
 
   if (m_swapChain)
@@ -1224,6 +1313,9 @@ HDR_STATUS DX::DeviceResources::ToggleHDR()
   }
 
   return hdrStatus;
+#else
+  return HDR_STATUS::HDR_UNSUPPORTED;
+#endif
 }
 
 DEBUG_INFO_RENDER DX::DeviceResources::GetDebugInfo() const
@@ -1255,7 +1347,10 @@ DEBUG_INFO_RENDER DX::DeviceResources::GetDebugInfo() const
 
   info.videoOutput = StringUtils::Format(
       "Output: {}x{}{} @ {:.2f} Hz, pixel: {} {}-bit, range: {} ({}-{})", desc.Width, desc.Height,
-      (md.ScanlineOrdering == DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE) ? "p" : "i",
+      (md.ScanlineOrdering == DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE ||
+       md.ScanlineOrdering == DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED)
+          ? "p"
+          : "i",
       static_cast<double>(md.RefreshRate.Numerator) /
           static_cast<double>(md.RefreshRate.Denominator),
       (desc.Format == DXGI_FORMAT_R10G10B10A2_UNORM) ? "R10G10B10A2" : "B8G8R8A8", bits,

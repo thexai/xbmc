@@ -16,7 +16,11 @@
 #include <memory>
 
 #include <concrt.h>
+#ifdef TARGET_WINDOWS_STORE
+#include <dxgi1_6.h>
+#else
 #include <dxgi1_5.h>
+#endif
 #include <wrl.h>
 #include <wrl/client.h>
 
@@ -81,8 +85,9 @@ namespace DX
 
     // HDR display support
     HDR_STATUS ToggleHDR();
+    bool IsHDRDisplayEnabled();
     void SetHdrMetaData(DXGI_HDR_METADATA_HDR10& hdr10) const;
-    void SetHdrColorSpace(const DXGI_COLOR_SPACE_TYPE colorSpace);
+    void SetHdrColorSpace(const DXGI_COLOR_SPACE_TYPE& colorSpace);
     bool IsHDROutput() const { return m_IsHDROutput; }
     bool IsTransferPQ() const { return m_IsTransferPQ; }
 

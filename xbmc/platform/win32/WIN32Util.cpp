@@ -1253,48 +1253,7 @@ HDR_STATUS CWIN32Util::ToggleWindowsHDR(DXGI_MODE_DESC& modeDesc)
   HDR_STATUS status = HDR_STATUS::HDR_TOGGLE_FAILED;
 
 #ifdef TARGET_WINDOWS_STORE
-  auto hdmiDisplayInfo = HdmiDisplayInformation::GetForCurrentView();
-
-  if (hdmiDisplayInfo == nullptr)
-    return status;
-
-  auto current = hdmiDisplayInfo.GetCurrentDisplayMode();
-
-  auto newColorSp = (current.ColorSpace() == HdmiDisplayColorSpace::BT2020)
-                        ? HdmiDisplayColorSpace::BT709
-                        : HdmiDisplayColorSpace::BT2020;
-
-  auto modes = hdmiDisplayInfo.GetSupportedDisplayModes();
-
-  // Browse over all modes available like the current (resolution and refresh)
-  // but reciprocals HDR (color space and transfer).
-  // NOTE: transfer for HDR is here "fake HDR" (EotfSdr) to be
-  // able render SRD content with HDR ON, same as Windows HDR switch does.
-  // GUI-skin is SDR. The real HDR mode is activated later when playback begins.
-  for (const auto& mode : modes)
-  {
-    if (mode.ColorSpace() == newColorSp &&
-        mode.ResolutionHeightInRawPixels() == current.ResolutionHeightInRawPixels() &&
-        mode.ResolutionWidthInRawPixels() == current.ResolutionWidthInRawPixels() &&
-        mode.StereoEnabled() == false && fabs(mode.RefreshRate() - current.RefreshRate()) < 0.0001)
-    {
-      if (current.ColorSpace() == HdmiDisplayColorSpace::BT2020) // HDR is ON
-      {
-        CLog::LogF(LOGINFO, "Toggle Windows HDR Off (ON => OFF).");
-        if (Wait(hdmiDisplayInfo.RequestSetCurrentDisplayModeAsync(mode,
-                                                                   HdmiDisplayHdrOption::None)))
-          status = HDR_STATUS::HDR_OFF;
-      }
-      else // HDR is OFF
-      {
-        CLog::LogF(LOGINFO, "Toggle Windows HDR On (OFF => ON).");
-        if (Wait(hdmiDisplayInfo.RequestSetCurrentDisplayModeAsync(mode,
-                                                                   HdmiDisplayHdrOption::EotfSdr)))
-          status = HDR_STATUS::HDR_ON;
-      }
-      break;
-    }
-  }
+  // Not supported - not implemented yet
 #else
   uint32_t pathCount = 0;
   uint32_t modeCount = 0;
@@ -1406,21 +1365,40 @@ HDR_STATUS CWIN32Util::GetWindowsHDRStatus()
   HDR_STATUS status = HDR_STATUS::HDR_UNSUPPORTED;
 
 #ifdef TARGET_WINDOWS_STORE
+  // This API only is supported on Xbox (not in Windows 10 UWP)
+  auto hdmiDisplayInfo = HdmiDisplayInformation::GetForCurrentView();
+
+  if (hdmiDisplayInfo)
+  {
+    const auto current = hdmiDisplayInfo.GetCurrentDisplayMode();
+
+    if (current.BitsPerPixel() > 24 || current.Is2086MetadataSupported() ||
+        current.IsSmpte2084Supported())
+    {
+      // HDR is ON
+      advancedColorSupported = true;
+      advancedColorEnabled = true;
+    }
+  }
+
+  // Windows 10 UWP can use this as fallback
   auto displayInformation = DisplayInformation::GetForCurrentView();
 
   if (displayInformation)
   {
-    auto advancedColorInfo = displayInformation.GetAdvancedColorInfo();
+    const auto advancedColorInfo = displayInformation.GetAdvancedColorInfo();
 
     if (advancedColorInfo)
     {
-      if (advancedColorInfo.CurrentAdvancedColorKind() == AdvancedColorKind::HighDynamicRange)
+      if (advancedColorInfo.CurrentAdvancedColorKind() != AdvancedColorKind::StandardDynamicRange)
       {
+        // HDR is ON
         advancedColorSupported = true;
         advancedColorEnabled = true;
       }
     }
   }
+
   // Try to find out if the display supports HDR even if Windows HDR switch is OFF
   if (!advancedColorEnabled)
   {
@@ -1428,13 +1406,13 @@ HDR_STATUS CWIN32Util::GetWindowsHDRStatus()
 
     if (displayManager)
     {
-      auto targets = displayManager.GetCurrentTargets();
+      const auto targets = displayManager.GetCurrentTargets();
 
       for (const auto& target : targets)
       {
         if (target.IsConnected())
         {
-          auto displayMonitor = target.TryGetMonitor();
+          const auto displayMonitor = target.TryGetMonitor();
           if (displayMonitor.MaxLuminanceInNits() >= 400.0f)
           {
             advancedColorSupported = true;

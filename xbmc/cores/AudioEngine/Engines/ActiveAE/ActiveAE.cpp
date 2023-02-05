@@ -29,9 +29,12 @@ using namespace ActiveAE;
 
 using namespace std::chrono_literals;
 
-#define MAX_CACHE_LEVEL 0.4   // total cache time of stream in seconds
-#define MAX_WATER_LEVEL 0.2   // buffered time after stream stages in seconds
-#define MAX_BUFFER_TIME 0.1   // max time of a buffer in seconds
+namespace
+{
+constexpr auto MAX_CACHE_LEVEL = 0.4f; // total cache time of stream in seconds;
+constexpr auto MAX_WATER_LEVEL = 0.2f; // buffered time after stream stages in seconds;
+constexpr auto MAX_BUFFER_TIME = 0.1; // max time of a buffer in seconds;
+} // unnamed namespace
 
 void CEngineStats::Reset(unsigned int sampleRate, bool pcm)
 {
@@ -217,19 +220,28 @@ float CEngineStats::GetCacheTotal()
 
 float CEngineStats::GetMaxDelay() const
 {
-  return static_cast<float>(MAX_CACHE_LEVEL) + static_cast<float>(MAX_WATER_LEVEL) +
-         m_sinkCacheTotal;
+  return MAX_CACHE_LEVEL + MAX_WATER_LEVEL + m_sinkCacheTotal;
 }
 
 float CEngineStats::GetWaterLevel()
 {
   std::unique_lock<CCriticalSection> lock(m_lock);
+
   if (m_pcmOutput)
+  {
     return static_cast<float>(m_bufferedSamples) / m_sinkSampleRate;
+  }
   else
-    return static_cast<float>(m_bufferedSamples *
-                              m_sinkFormat.m_streamInfo.GetDuration(m_sinkNeedIecPack)) /
-           1000;
+  {
+    float wl = static_cast<float>(m_bufferedSamples *
+                                  m_sinkFormat.m_streamInfo.GetDuration(m_sinkNeedIecPack)) /
+               1000;
+
+    if (wl >= MAX_WATER_LEVEL)
+      wl = MAX_WATER_LEVEL - 0.00001f;
+
+    return wl;
+  }
 }
 
 void CEngineStats::SetSuspended(bool state)
@@ -1911,7 +1923,7 @@ bool CActiveAE::RunStages()
       float buftime = (float)(*it)->m_inputBuffers->m_format.m_frames / (*it)->m_inputBuffers->m_format.m_sampleRate;
       if ((*it)->m_inputBuffers->m_format.m_dataFormat == AE_FMT_RAW)
         buftime = (*it)->m_inputBuffers->m_format.m_streamInfo.GetDuration() / 1000;
-      while ((time < static_cast<float>(MAX_CACHE_LEVEL) || (*it)->m_streamIsBuffering) &&
+      while ((time < MAX_CACHE_LEVEL || (*it)->m_streamIsBuffering) &&
              !(*it)->m_inputBuffers->m_freeSamples.empty())
       {
         buffer = (*it)->m_inputBuffers->GetFreeBuffer();
@@ -1951,7 +1963,7 @@ bool CActiveAE::RunStages()
     }
   }
 
-  if (m_stats.GetWaterLevel() < static_cast<float>(MAX_WATER_LEVEL) &&
+  if (m_stats.GetWaterLevel() < MAX_WATER_LEVEL &&
       (m_mode != MODE_TRANSCODE || (m_encoderBuffers && !m_encoderBuffers->m_freeSamples.empty())))
   {
     // calculate sync error

@@ -332,7 +332,7 @@ void CFileCache::Process()
     if (maxWrite < maxSourceRead)
     {
       // Wait until sufficient cache write space is available
-      m_pCache->m_space.Wait(5ms);
+      m_pCache->m_space.Wait(100ms);
       continue;
     }
 

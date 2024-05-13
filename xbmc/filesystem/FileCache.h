@@ -47,6 +47,7 @@ namespace XFILE
     int64_t GetLength() override;
 
     int IoControl(EIoControl request, void* param) override;
+    int GetChunkSize() override { return m_chunkSize; }
 
     IFile *GetFileImp();
 

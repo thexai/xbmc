@@ -109,9 +109,9 @@ public class Splash extends Activity
         case CheckingPermissionsInfo:
           AlertDialog dialog = new AlertDialog.Builder(mSplash).create();
           dialog.setCancelable(false);
-          dialog.setTitle("Info");
-          dialog.setMessage("@APP_NAME@ requires access to your device media and files to function. Please allow this via the following dialogue box or @APP_NAME@ will exit.");
-          dialog.setButton(DialogInterface.BUTTON_NEUTRAL, "continue", new DialogInterface.OnClickListener()
+          dialog.setTitle("All files access permission");
+          dialog.setMessage("Allow access to your files so @APP_NAME@ can use the built-in file manager. Please allow this in Android settings or @APP_NAME@ will exit.");
+          dialog.setButton(DialogInterface.BUTTON_NEUTRAL, "Continue", new DialogInterface.OnClickListener()
           {
             @Override
             public void onClick(DialogInterface dialog, int which)
@@ -133,14 +133,24 @@ public class Splash extends Activity
           {
             try
             {
-              Intent intent = new Intent();
-              intent.setAction(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
-              intent.setData(Uri.parse(String.format("package:%s", getPackageName())));
+              Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+              intent.addCategory("android.intent.category.DEFAULT");
+              intent.setData(Uri.parse("package:" + getPackageName()));
               startActivityForResult(intent, PERMISSION_RESULT_CODE);
             }
             catch (Exception e)
             {
               Log.d(TAG, "Exception asking for permissions: " + e.getMessage());
+              try
+              {
+                Intent intent = new Intent();
+                intent.setAction(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+                startActivityForResult(intent, PERMISSION_RESULT_CODE);
+              }
+              catch (Exception ex)
+              {
+                Log.d(TAG, "Exception asking for permissions (fallback code): " + ex.getMessage());
+              }
             }
           }
           else

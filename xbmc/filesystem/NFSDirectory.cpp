@@ -49,9 +49,15 @@ KODI::TIME::FileTime GetDirEntryTime(struct nfsdirent* dirent)
   ll *= 10000000ll;
   ll += 116444736000000000ll;
 
+#ifdef TARGET_WINDOWS
+  FILETIME fileTime{};
+  fileTime.dwLowDateTime = static_cast<DWORD>(ll & 0xffffffff);
+  fileTime.dwHighDateTime = static_cast<DWORD>(ll >> 32);
+#else
   KODI::TIME::FileTime fileTime{};
   fileTime.lowDateTime = static_cast<DWORD>(ll & 0xffffffff);
   fileTime.highDateTime = static_cast<DWORD>(ll >> 32);
+#endif
 
   KODI::TIME::FileTime localTime{};
   KODI::TIME::FileTimeToLocalFileTime(&fileTime, &localTime);

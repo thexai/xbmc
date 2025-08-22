@@ -76,7 +76,11 @@ void Sleep(std::chrono::duration<Rep, Period> duration)
   std::this_thread::sleep_for(duration);
 }
 
+#ifdef TARGET_WINDOWS
+int FileTimeToLocalFileTime(const FILETIME* fileTime, FileTime* localFileTime);
+#else
 int FileTimeToLocalFileTime(const FileTime* fileTime, FileTime* localFileTime);
+#endif
 int SystemTimeToFileTime(const SystemTime* systemTime, FileTime* fileTime);
 long CompareFileTime(const FileTime* fileTime1, const FileTime* fileTime2);
 int FileTimeToSystemTime(const FileTime* fileTime, SystemTime* systemTime);

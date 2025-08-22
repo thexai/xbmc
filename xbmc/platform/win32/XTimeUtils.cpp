@@ -82,14 +82,10 @@ void GetLocalTime(SystemTime* systemTime)
   systemTime->milliseconds = time.wMilliseconds;
 }
 
-int FileTimeToLocalFileTime(const FileTime* fileTime, FileTime* localFileTime)
+int FileTimeToLocalFileTime(const FILETIME* fileTime, FileTime* localFileTime)
 {
-  FILETIME file{};
-  file.dwLowDateTime = fileTime->lowDateTime;
-  file.dwHighDateTime = fileTime->highDateTime;
-
   SYSTEMTIME systemTime{};
-  if (FALSE == ::FileTimeToSystemTime(&file, &systemTime))
+  if (FALSE == ::FileTimeToSystemTime(fileTime, &systemTime))
     return FALSE;
 
   SYSTEMTIME localSystemTime{};

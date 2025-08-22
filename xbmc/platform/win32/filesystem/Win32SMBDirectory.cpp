@@ -171,18 +171,12 @@ bool CWin32SMBDirectory::GetDirectory(const CURL& url, CFileItemList &items)
 
     // calculation of size and date costs a little on win32
     // so DIR_FLAG_NO_FILE_INFO flag is ignored
-    KODI::TIME::FileTime fileTime;
-    fileTime.lowDateTime = findData.ftLastWriteTime.dwLowDateTime;
-    fileTime.highDateTime = findData.ftLastWriteTime.dwHighDateTime;
     KODI::TIME::FileTime localTime;
-    if (KODI::TIME::FileTimeToLocalFileTime(&fileTime, &localTime) == TRUE)
+    if (KODI::TIME::FileTimeToLocalFileTime(&findData.ftLastWriteTime, &localTime) == TRUE)
       pItem->SetDateTime(localTime);
     else
-    {
-      CDateTime dt{pItem->GetDateTime()};
-      dt.SetValid(false);
-      pItem->SetDateTime(dt);
-    }
+      pItem->SetDateTime(0);
+
     if (!pItem->IsFolder())
       pItem->SetSize((__int64(findData.nFileSizeHigh) << 32) + findData.nFileSizeLow);
 

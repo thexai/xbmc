@@ -588,45 +588,10 @@ void CGUIFontTTF::DrawTextInternal(CGraphicContext& context,
     float offsetX = 0;
     float offsetY = 0;
 
-    // Collect all the Character info in a first pass, in case any of them
-    // are not currently cached and cause the texture to be enlarged, which
-    // would invalidate the texture coordinates.
-    std::queue<Character> characters;
-
-    if (alignment & XBFONT_TRUNCATED_LEFT)
-      cursorX += ellipsesWidth;
-
     auto glyphBegin = glyphs.cbegin() + startPosGlyph;
-
-    for (auto itGlyph = glyphBegin; itGlyph != glyphs.cend(); ++itGlyph)
-    {
-      Character* ch =
-          GetCharacter(text[itGlyph->m_glyphInfo.cluster], itGlyph->m_glyphInfo.codepoint);
-      if (!ch)
-      {
-        Character null = {};
-        characters.push(null);
-        continue;
-      }
-      characters.push(*ch);
-
-      if (maxPixelWidth > 0)
-      {
-        float nextCursorX = cursorX;
-
-        if (alignment & XBFONT_TRUNCATED)
-          nextCursorX += ch->m_advance + ellipsesWidth;
-
-        if (nextCursorX > maxPixelWidth)
-          break;
-      }
-
-      cursorX += ch->m_advance;
-    }
 
     // Reserve vector space: 4 vertex for each glyph
     tempVertices->reserve(VERTEX_PER_GLYPH * glyphs.size());
-    cursorX = 0;
 
     for (auto itGlyph = glyphBegin; itGlyph != glyphs.cend(); ++itGlyph)
     {
@@ -637,17 +602,18 @@ void CGUIFontTTF::DrawTextInternal(CGraphicContext& context,
         color = 0;
       color = colors[color];
 
-      // grab the next character
-      Character* ch = &characters.front();
-
       if ((text[itGlyph->m_glyphInfo.cluster] & 0xffff) == static_cast<character_t>('\t'))
       {
         const float tabwidth = GetTabSpaceLength();
         const float a = cursorX / tabwidth;
         cursorX += tabwidth - ((a - floorf(a)) * tabwidth);
-        characters.pop();
         continue;
       }
+
+      Character* ch =
+          GetCharacter(text[itGlyph->m_glyphInfo.cluster], itGlyph->m_glyphInfo.codepoint);
+      if (!ch)
+        break;
 
       if (alignment & XBFONT_TRUNCATED)
       {
@@ -701,7 +667,6 @@ void CGUIFontTTF::DrawTextInternal(CGraphicContext& context,
       }
       else
         cursorX += ch->m_advance;
-      characters.pop();
     }
     if (hardwareClipping)
     {

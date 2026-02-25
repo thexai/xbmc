@@ -163,7 +163,7 @@ void CEngineStats::GetDelay(AEDelayStatus& status, CActiveAEStream *stream)
     {
       std::unique_lock lock(stream->m_statsLock);
       float buffertime = static_cast<float>(str.m_bufferedTime) + stream->m_bufferedTime;
-      status.delay += static_cast<double>(buffertime) / str.m_resampleRatio;
+      status.delay += static_cast<double>(buffertime) * str.m_resampleRatio;
       return;
     }
   }
@@ -189,7 +189,7 @@ void CEngineStats::GetSyncInfo(CAESyncInfo& info, CActiveAEStream *stream)
     {
       std::unique_lock lock(stream->m_statsLock);
       float buffertime = static_cast<float>(str.m_bufferedTime) + stream->m_bufferedTime;
-      status.delay += static_cast<double>(buffertime) / str.m_resampleRatio;
+      status.delay += static_cast<double>(buffertime) * str.m_resampleRatio;
       info.delay = status.GetDelay();
       info.error = str.m_syncError;
       info.errortime = str.m_errorTime;
@@ -211,7 +211,7 @@ float CEngineStats::GetCacheTime(CActiveAEStream *stream)
     {
       std::unique_lock lock(stream->m_statsLock);
       float buffertime = static_cast<float>(str.m_bufferedTime) + stream->m_bufferedTime;
-      delay += buffertime / static_cast<float>(str.m_resampleRatio);
+      delay += buffertime * static_cast<float>(str.m_resampleRatio);
       break;
     }
   }
@@ -1556,6 +1556,19 @@ void CActiveAE::SFlushStream(CActiveAEStream *stream)
   stream->m_syncState = CAESyncInfo::AESyncState::SYNC_START;
   stream->m_syncError.Flush();
   stream->ResetFreeBuffers();
+
+  // Reset Logic State Variables to revive Servo
+  stream->m_lastPts = 0.0;
+  stream->m_lastPtsJump = 0.0;
+  stream->m_errorInterval = std::chrono::milliseconds(1000);
+
+  // Synchronously reset servo state to prevent stale cache interaction.
+  // This MUST be done before m_stats.UpdateStream(stream) is called.
+  stream->m_resampleIntegral = 0.0;
+  if (stream->m_processingBuffers)
+  {
+    stream->m_processingBuffers->SetRR(1.0, m_settings.atempoThreshold);
+  }
 
   // flush the engine if we only have a single stream
   if (m_streams.size() == 1)

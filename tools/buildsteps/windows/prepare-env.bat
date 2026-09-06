@@ -7,6 +7,10 @@ POPD
 ECHO Workspace is %WORKSPACE%
 
 cd %WORKSPACE%
+
+where ccache
+ccache -s
+
 rem clean the BUILD_WIN32 at first to avoid problems with possible git files in there
 IF EXIST %WORKSPACE%\project\Win32BuildSetup\BUILD_WIN32 rmdir %WORKSPACE%\project\Win32BuildSetup\BUILD_WIN32 /S /Q
 
@@ -35,6 +39,18 @@ SET GIT_CLEAN_CMD=git clean -xffd -e "/.build-cache" -e "project/BuildDependenci
 
 ECHO running %GIT_CLEAN_CMD%
 %GIT_CLEAN_CMD%
+
+IF NOT ERRORLEVEL 1 GOTO :eof
+
+ECHO WARNING: git clean reported errors, an attempt will be made to recover by killing possible zombie processes...
+
+TASKKILL /IM "cmake.exe" /F >nul 2>&1
+TASKKILL /IM "link.exe" /F >nul 2>&1
+TASKKILL /IM "msbuild.exe" /F >nul 2>&1
+
+ECHO running %GIT_CLEAN_CMD%
+%GIT_CLEAN_CMD%
+
 EXIT /B %ERRORLEVEL%
 
 :cacheBuild

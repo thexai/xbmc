@@ -201,6 +201,8 @@ bool CRenderSystemGLES::DestroyRenderSystem()
   glFinish();
   PresentRenderImpl(true);
 
+  // release the GUI composite FBO and shader while the context is current
+  m_guiComposite.Enable(0, false);
   ReleaseShaders();
   // The DrawQuad callback holds a reference to m_quadDrawer; nothing may draw through it from now on.
   CGUITexture::UnregisterDrawQuad();

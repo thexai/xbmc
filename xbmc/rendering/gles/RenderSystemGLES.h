@@ -9,6 +9,7 @@
 #pragma once
 
 #include "GLESShader.h"
+#include "GuiCompositeGLES.h"
 #include "guilib/GUIQuadDrawerGLES.h"
 #include "rendering/RenderSystem.h"
 #include "utils/ColorUtils.h"
@@ -199,4 +200,7 @@ protected:
   KODI::UTILS::GL::CGLBufferObject m_guiQuadIndexBuffer{GL_ELEMENT_ARRAY_BUFFER};
   KODI::UTILS::GL::CGLBufferObject m_guiUnitQuad{GL_ARRAY_BUFFER};
   std::vector<GLushort> m_guiQuadIndices;
+
+  // Driven by the windowing system's GUI compositing virtuals (CWinSystemBase).
+  CGuiCompositeGLES m_guiComposite;
 };

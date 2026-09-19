@@ -195,7 +195,7 @@ void CGuiCompositeGLES::Composite(CRenderSystemGLES& renderSystem,
   // composite then reads the squared alpha and translucent GUI pixels render
   // at the wrong opacity. Replace the stored alpha so it sees src.a.
   if (videoOnSeparatePlane)
-    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
+    glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
   else
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 

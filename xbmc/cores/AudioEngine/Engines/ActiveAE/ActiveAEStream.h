@@ -258,6 +258,8 @@ protected:
   CAESyncInfo::AESyncState m_syncState;
   // Whether late audio was left to the player's clock and no error was averaged since
   bool m_lateStartHandedOver{false};
+  // Whether the current sync started with a resume from pause and is not in sync yet
+  bool m_resumeSync{false};
 };
 }
 

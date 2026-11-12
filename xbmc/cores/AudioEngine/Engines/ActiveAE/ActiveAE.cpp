@@ -768,7 +768,10 @@ void CActiveAE::StateMachine(int signal, Protocol *port, Message *msg)
         case CActiveAEControlProtocol::RESUMESTREAM:
           stream = *(CActiveAEStream**)msg->data;
           if (stream->m_paused)
+          {
             stream->m_syncState = CAESyncInfo::AESyncState::SYNC_START;
+            stream->m_resumeSync = stream->m_started;
+          }
           stream->m_paused = false;
           streaming = true;
           m_sink.m_controlPort.SendOutMessage(CSinkControlProtocol::STREAMING, &streaming, sizeof(bool));
@@ -1025,6 +1028,7 @@ void CActiveAE::StateMachine(int signal, Protocol *port, Message *msg)
         case CActiveAEControlProtocol::RESUMESTREAM:
           CActiveAEStream *stream;
           stream = *(CActiveAEStream**)msg->data;
+          stream->m_resumeSync = stream->m_paused && stream->m_started;
           stream->m_paused = false;
           stream->m_syncState = CAESyncInfo::AESyncState::SYNC_START;
           m_state = AE_TOP_CONFIGURED_PLAY;
@@ -1643,6 +1647,7 @@ void CActiveAE::SFlushStream(CActiveAEStream *stream)
   stream->m_bufferedTime = 0.0;
   stream->m_paused = false;
   stream->m_syncState = CAESyncInfo::AESyncState::SYNC_START;
+  stream->m_resumeSync = false;
   stream->m_syncError.Flush();
   stream->ResetFreeBuffers();
 
@@ -2486,7 +2491,9 @@ bool CActiveAE::RunStages()
         if (!m_sinkHasVolume || m_muted)
           Deamplify(*(out->pkt));
 
-        if (m_mode == MODE_TRANSCODE && m_encoder)
+        // a pause burst from SyncStream() has nothing to encode and goes to the sink unchanged
+        if (m_mode == MODE_TRANSCODE && m_encoder &&
+            !(out->pkt->nb_samples == 0 && out->pkt->pause_burst_ms > 0))
         {
           CSampleBuffer *buf = nullptr;
           if (out->pkt->nb_samples)
@@ -2666,6 +2673,19 @@ CSampleBuffer* CActiveAE::SyncStream(CActiveAEStream *stream)
     }
   }
 
+  if (stream->m_syncState == CAESyncInfo::AESyncState::SYNC_INSYNC)
+    stream->m_resumeSync = false;
+
+  // After a resume, the Android AudioTrack still holds the audio from before the pause. Encoded
+  // silence would play after it, while the sink pauses the track itself for a pause burst. With
+  // more than one stream, the others are mixed into the packet and keep the encoded silence.
+#if defined(TARGET_ANDROID)
+  const bool transcodePause{m_mode == MODE_TRANSCODE && m_streams.size() == 1 &&
+                            stream->m_resumeSync && !m_sink.NeedIecPack()};
+#else
+  constexpr bool transcodePause{false};
+#endif
+
   // While the error is averaged, samples that will not be skipped stay audible. Not in passthrough,
   // where the correction that follows interrupts the bitstream the receiver just locked on to.
   double errorSoFar{0.0};
@@ -2678,6 +2698,11 @@ CSampleBuffer* CActiveAE::SyncStream(CActiveAEStream *stream)
     {
       buf->pkt->nb_samples = 0;
       buf->pkt->pause_burst_ms = stream->m_processingBuffers->m_inputFormat.m_streamInfo.GetDuration();
+    }
+    else if (transcodePause)
+    {
+      buf->pkt->nb_samples = 0;
+      buf->pkt->pause_burst_ms = m_sinkFormat.m_streamInfo.GetDuration();
     }
     else
     {
@@ -2713,6 +2738,16 @@ CSampleBuffer* CActiveAE::SyncStream(CActiveAEStream *stream)
           ret->pkt->pause_burst_ms = error;
           if (error > stream->m_format.m_streamInfo.GetDuration())
             ret->pkt->pause_burst_ms = stream->m_format.m_streamInfo.GetDuration();
+
+          stream->m_syncError.Correction(-ret->pkt->pause_burst_ms);
+          error -= ret->pkt->pause_burst_ms;
+        }
+        else if (transcodePause)
+        {
+          // a whole frame, which is what the stats count for each packet
+          ret->pkt->nb_samples = 0;
+          if (framesToDelay > 0)
+            ret->pkt->pause_burst_ms = m_sinkFormat.m_streamInfo.GetDuration();
 
           stream->m_syncError.Correction(-ret->pkt->pause_burst_ms);
           error -= ret->pkt->pause_burst_ms;

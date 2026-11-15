@@ -205,6 +205,10 @@ bool CWinSystemAndroidGLESContext::CreateSurface()
   // and offers no 10-bit window config.
   const bool hdrConfig = m_HDRColorSpace != EGL_NONE;
 
+  // Destroying a surface, or failing to create one, disconnects EGL from the
+  // window, which resets its buffer size, e.g. a 4K GUI to the 1080p default.
+  m_nativeWindow->SetBuffersGeometry(m_nWidth, m_nHeight, 0);
+
   if (!m_pGLContext.CreateSurface(static_cast<EGLNativeWindowType>(m_nativeWindow->GetWindow()),
                                   m_HDRColorSpace, hdrConfig))
   {
@@ -213,6 +217,7 @@ bool CWinSystemAndroidGLESContext::CreateSurface()
       m_HDRColorSpace = EGL_NONE;
       m_displayMetadata = nullptr;
       m_lightMetadata = nullptr;
+      m_nativeWindow->SetBuffersGeometry(m_nWidth, m_nHeight, 0);
       if (!m_pGLContext.CreateSurface(
               static_cast<EGLNativeWindowType>(m_nativeWindow->GetWindow())))
         return false;
